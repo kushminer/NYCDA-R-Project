@@ -4,14 +4,20 @@ output: html_notebook
 ---
 
 ```{text, Project Goal}
- A company recently introduced a new bidding type, “average bidding”, 
- as an alternative to its exisiting bidding type, called “maximum bidding”. 
- One of our clients has decided to test this new feature 
- and wants to conduct an A/B test to understand 
- if average bidding brings more conversions than maximum bidding.
+
+  Our company recently introduced a new bidding type, “average bidding”,
+as an alternative to its existing bidding type, “maximum bidding”. 
  
- The A/B test ran for 1 month and the client now expects you 
- to analyze and present the results of this A/B test.
+  One of our clients wants to test this new feature and A/B test to understand if average bidding brings more conversions than maximum bidding.
+ 
+  The A/B test ran for 1 month and the client now expects you to analyze and present the results of this A/B test.
+  
+-- -- -- 
+
+average will not go above the max
+maxmimum bid is you will max bid
+
+  
 ```
 
 
@@ -19,9 +25,746 @@ output: html_notebook
 library(dplyr)
 library(ggplot2)
 library(reshape2)
+library(tidyr)
 
 average_bidding <- read.csv("control_group.csv", sep = ";", header = F)
 maximum_bidding <- read.csv("test_group.csv", sep = ";", header = F)
+
+```
+
+
+```{r, Data Cleaning}
+
+# Change the column names
+column_names <- c("Campaign Name", "Date", "Spend (USD)",
+                  "Impressions", "Reach", "Website Clicks", 
+                  "Searches", "View Content", "Add to Cart", 
+                  "Purchase")
+colnames(maximum_bidding) <- column_names
+colnames(average_bidding) <- column_names
+
+# Remove the rows with column labels
+average_bidding <- average_bidding[-1,] 
+maximum_bidding <- maximum_bidding[-1,]       
+
+# Change the data type of columns to integer
+numeric_cols <- c("Spend (USD)", "Impressions", "Reach", "Website Clicks", 
+                  "Searches", "View Content", "Add to Cart", "Purchase")
+average_bidding[, numeric_cols] <- sapply(average_bidding[, numeric_cols], as.integer)
+maximum_bidding[, numeric_cols] <- sapply(maximum_bidding[, numeric_cols], as.integer)
+
+# Change the data type of the date column to Date
+average_bidding$Date <- as.Date(average_bidding$Date, "%d.%m.%Y")
+maximum_bidding$Date <- as.Date(maximum_bidding$Date, "%d.%m.%Y")
+
+# Check for missing values
+which(is.na(average_bidding) | average_bidding == "", arr.ind = TRUE)
+sum(is.na(average_bidding))
+which(is.na(maximum_bidding) | maximum_bidding == "", arr.ind = TRUE)
+sum(is.na(maximum_bidding))
+
+# Remove rows with missing values
+average_bidding <- average_bidding[-5, ] # 7 Missing Values in this row 
+maximum_bidding <- maximum_bidding[-5, ] # Removing to balance data
+
+# Check for missing values again
+which(is.na(average_bidding) | average_bidding == "", arr.ind = TRUE)
+sum(is.na(average_bidding))
+which(is.na(maximum_bidding) | maximum_bidding == "", arr.ind = TRUE)
+sum(is.na(maximum_bidding))
+
+# Reset the row numbers
+rownames(average_bidding) <- 1:nrow(average_bidding)
+rownames(maximum_bidding) <- 1:nrow(maximum_bidding)
+
+# Add Day of Week
+average_bidding$Weekday <- weekdays(average_bidding$Date)
+maximum_bidding$Weekday <- weekdays(maximum_bidding$Date)
+
+average_bidding
+maximum_bidding
+```
+
+```{r, Merging Data}
+
+# Melt the data into long format
+columns_to_melt <- c("Spend (USD)", "Impressions", "Reach",
+                     "Website Clicks", "Searches", "View Content",
+                     "Add to Cart", "Purchase")
+
+average_bidding_melt <- melt(average_bidding, id.vars = "Date", measure.vars = columns_to_melt)
+maximum_bidding_melt <- melt(maximum_bidding, id.vars = "Date", measure.vars = columns_to_melt)
+
+# Add a column indicating the group (average_bidding or maximum_bidding)
+average_bidding_melt$group <- "average_bidding"
+maximum_bidding_melt$group <- "maximum_bidding"
+
+# Combine the two melted data frames into one data frame
+combined_data <- rbind(average_bidding_melt, maximum_bidding_melt)
+
+# Add Day of Week
+combined_data$Weekday <- weekdays(combined_data$Date)
+
+combined_data
+
+```
+
+***Show The Varaible Counts***
+
+```{r, Select Date and Variable}
+
+compare_bidding_by_day_and_variable <- function(date, variable, average_bidding, maximum_bidding) {
+  
+  # Select Day of Week
+  selected_day_average_bidding <- average_bidding %>%
+    filter(Date == date)
+
+  selected_day_maximum_bidding <- maximum_bidding %>%
+    filter(Date == date)
+
+  # Select the data for the desired variables and day
+  average_bidding_day <- selected_day_average_bidding %>%
+    select(`Campaign Name`, all_of(variable))
+
+  maximum_bidding_day <- selected_day_maximum_bidding %>%
+    select(`Campaign Name`, all_of(variable))
+
+  # Combine the data for both dataframes into a single dataframe
+  combined_data <- rbind(average_bidding_day, maximum_bidding_day)
+
+  # Comparison Plot
+  ggplot(combined_data, aes(x = `Campaign Name`, y = as.numeric(combined_data[,variable]), fill = `Campaign Name`)) +
+    geom_bar(stat = "identity") +
+    labs(x = "Campaign Name", y = variable) +
+    ggtitle(paste0("Comparison of ", variable, " between Average Bidding and Maximum Bidding")) +
+    scale_fill_discrete(name = "Campaign Name", labels = c("Average Bidding", "Maximum Bidding")) +
+    theme_minimal()
+}
+
+# Select Variables:
+date = '2019-08-01'
+variable = 'Website Clicks'
+
+# Run Function
+compare_bidding_by_day_and_variable(date, variable, average_bidding, maximum_bidding)
+
+
+```
+
+***Adjust Code to Select Variables to Plot***
+
+```{r, Monthly: Select Variable to Compare}
+
+plot_variable <- function(variable, average_bidding, maximum_bidding) {
+  ggplot(data = average_bidding) + 
+    geom_col(aes(x = Date, y = as.numeric(average_bidding[,variable]), color = "Average Bidding")) +
+    geom_col(data = maximum_bidding, aes(x = Date, y = as.numeric(maximum_bidding[,variable]), color = "Maximum Bidding")) +
+    ggtitle(paste0(variable, " Over Time")) + 
+    xlab("Date") + 
+    ylab(variable) +
+    theme(plot.title = element_text(hjust = 0.5))
+}
+
+# Example usage:
+variable = 'Spend (USD)'
+# Spend (USD) Impressions Reach Website Clicks Searches View Content Add to Cart    Purchase 
+plot_variable(variable, average_bidding, maximum_bidding)
+
+
+```
+
+```{r, Monthly: Compare two Variables}
+
+plot_variables <- function(x_variable, y_variable, average_bidding, maximum_bidding) {
+  ggplot(data = average_bidding) + 
+    geom_point(aes(x = as.numeric(average_bidding[,x_variable]), y = as.numeric(average_bidding[,y_variable]), color = "Average Bidding", size = 4)) +
+    geom_point(data = maximum_bidding, aes(x = as.numeric(maximum_bidding[,x_variable]), y = as.numeric(maximum_bidding[,y_variable]), color = "Maximum Bidding", size = 4)) +
+    ggtitle(paste0(y_variable, " vs. ", x_variable)) + 
+    xlab(x_variable) + 
+    ylab(y_variable) +
+    scale_color_manual(values = c("Average Bidding" = "blue", "Maximum Bidding" = "red"))
+}
+
+
+# Select X and Y Variable: # Spend (USD) Impressions Reach Website Clicks Searches View Content Add to Cart    Purchase 
+x_variable = 'Impressions'
+y_variable = 'Purchase'
+
+# Plot
+plot_variables(x_variable, y_variable, average_bidding, maximum_bidding)
+
+
+```
+
+
+```{r, Daily Facet Wrap}
+
+# Daily: Facet bar plot
+ggplot(combined_data, aes(x = Date, y = value, fill = group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~variable, scales = "free_y") +
+  ggtitle("Bar Plot Comparison") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90, hjust = 1))
+
+# Daily: Facet line plot
+ggplot(combined_data, aes(x = Date, y = value, color = group)) +
+  geom_line(aes(group = group)) +
+  facet_wrap(~variable, scales = "free_y") +
+  ggtitle("Line Plot Comparison") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+# Daily: Stacked Plots
+ggplot(combined_data, aes(x = Date, y = value, fill = group)) +
+  geom_area(position = "stack") +
+  ggtitle("Stacked Plot Comparsion") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  facet_wrap(~variable, scales = "free_y")
+
+# Can Use This Analysis to Easily Spot Outliers
+
+
+```
+***Adjust to Even days of Week, Correct Code***
+
+```{r, DataFrames by Day of Week}
+
+# Spend By Day of The Week as Sum
+combined_data %>%
+  filter(variable == "Spend (USD)") %>%
+  group_by(day_of_week) %>%
+  summarise(sum_of_values = sum(value)) %>% 
+  print(n = 200)
+
+# Spend By Day of The Week as Percentage
+combined_data %>%
+  filter(variable == "Spend (USD)") %>%
+  group_by(day_of_week) %>%
+  summarise(sum_of_values = sum(value)) %>% 
+  mutate(percent_of_total = sum_of_values / sum(sum_of_values) * 100)
+
+
+# All Variables by Day of The Week with Percentage
+combined_data %>%
+  group_by(day_of_week, variable) %>%
+  summarise(sum_of_values = sum(value)) %>%
+  group_by(variable) %>%
+  mutate(percent_of_total = sum_of_values / sum(sum_of_values) * 100)
+
+# Ratio of Spend to Every Variable of the group
+combined_data %>%
+  group_by(day_of_week, variable) %>%
+  summarise(sum_of_values = sum(value)) %>%
+  mutate(ratio = ifelse(variable != "Spend (USD)", sum_of_values / sum(sum_of_values[variable == "Spend (USD)"]), NA))
+
+
+```
+
+
+```{r, Plot Performance by Day of Week}
+# Variable By Day of The Week
+
+combined_data %>% 
+  group_by(Weekday, variable) %>% 
+  summarise(sum_of_values = sum(value)) %>% 
+  ggplot(aes(x = Weekday, y = sum_of_values, fill = variable)) + 
+  geom_col() + 
+  labs(x = "Day of the week", y = "Sum of values") + 
+  ggtitle("Sum of values by day of the week and variable") + 
+  facet_wrap(~ variable, ncol = 1,scales = "free_y")
+
+average_bidding_melt
+combined_data
+
+# Percent of Total by Day of Week
+
+average_bidding_melt %>%
+  group_by(day_of_week, variable) %>%
+  summarise(sum_of_values = sum(value)) %>%
+  group_by(variable) %>%
+  mutate(percent_of_total = sum_of_values / sum(sum_of_values) * 100) %>%
+  ggplot(aes(x = day_of_week, y = percent_of_total, fill = variable)) +
+  geom_col() +
+  geom_text(aes(label = sprintf("%1.1f%%", percent_of_total)), position = position_fill(vjust = 0.75)) +
+  labs(x = "Day of the week", y = "Percent of total") +
+  ggtitle("Percent of total by day of the week and variable") +
+  facet_wrap(~ variable, ncol = 1, scales = "free_y")
+
+# As a ratio of spend: can adjust for other ratios
+
+combined_data %>% 
+  group_by(Weekday, variable) %>% 
+  summarise(sum_of_values = sum(value)) %>% 
+  mutate(ratio = sum(sum_of_values[variable == "Spend (USD)"]) / sum_of_values) %>% 
+  ggplot(aes(x = day_of_week, y = ratio, fill = variable)) + 
+  geom_col() + 
+  geom_text(aes(label = round(ratio, 2)), position = position_dodge(width = 0.9), vjust = -0.25) +
+  labs(x = "Day of the week", y = "Ratio") + 
+  ggtitle("Ratio of each variable to spend by day of the week") + 
+  facet_wrap(~ variable, ncol = 1,scales = "free_y")
+
+# We can analyize these groups to see how much our costs are per action per day of the week
+# 
+
+```
+
+
+```{r, Monthly Data DataFrame for Validating}
+
+# Validating the Sum of Values
+average_bidding %>%
+  summarize(
+    Spend = sum(`Spend (USD)`),
+    Impressions = sum(Impressions),
+    Reach = sum(Reach),
+    Website_Clicks = sum(`Website Clicks`),
+    Searches = sum(Searches),
+    View_Content = sum(`View Content`),
+    Add_to_Cart = sum(`Add to Cart`),
+    Purchase = sum(`Purchase`)
+  )
+# average_bidding 66818	3177233	2576503	154303	64418	56370	37700	15161
+# maximum_bidding 74595	2123249	1509609	175107	70463	54882	25490	14869
+
+```
+
+
+```{r, Dataframes and Plotting for Monthly Sum of Spend and Conversions}
+
+####################### Conversion Sums
+
+# Total Sum by Variable
+monthly_data <- combined_data %>%
+  group_by(group,variable) %>%
+  summarize(sum = sum(value))
+
+monthly_data
+
+# Total Sum by Variable Plot
+ggplot(monthly_data, aes(x = group, y = sum, fill = group)) +
+  geom_bar(stat = "identity", position = "stack") +
+  geom_text(aes(label = round(sum)), position = position_stack(vjust = 0.5)) +
+  facet_wrap(~variable, scales = "free_y",ncol=2) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+# Select Conversion Variable to Include
+
+# Define Function
+plot_sum_by_variable <- function(monthly_data, include_vars) {
+
+# Subset the data to only include the specified variables
+monthly_data <- monthly_data[monthly_data$variable %in% include_vars, ]
+
+# Plot the selected data
+ggplot(monthly_data, aes(x = group, y = sum, fill = group)) +
+  geom_bar(stat = "identity", position = "stack") +
+  geom_text(aes(label = round(sum)), position = position_stack(vjust = 0.5)) +
+  facet_wrap(~variable, scales = "free_y",ncol=2) +
+  ggtitle("Sum of Conversions") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),plot.title = element_text(hjust = 0.5)) +
+  labs(x = "", y = "Total Sum")
+}
+
+# Example usage:
+include_vars <- c("Spend (USD)", "Impressions", "Reach", "Website Clicks", "Searches", "View Content", "Add to Cart", "Purchase")
+# "Spend (USD)", "Impressions", "Reach", "Website Clicks", "Searches", "View Content", "Add to Cart", "Purchase"
+plot_sum_by_variable(monthly_data, include_vars)
+
+# Needed less impressions, clicks, and add-to-carts to get to a purchase with Maximum Bidding
+# Why was the spend higher, impressions and reach lower, Clicks, Searches Lower, with better Add-to-cart to Purchase Ratios?
+
+```
+
+```{r, Conversion Cost}
+
+# Conversion Cost DataFrame
+conversion_cost <- combined_data %>%
+  group_by(group, variable) %>%
+  summarise(sum = sum(value)) %>%
+  mutate(ratio = ifelse(variable != "Spend (USD)", sum(sum[variable == "Spend (USD)"]), NA) / sum) %>%
+  filter(variable != "Spend (USD)")
+  
+conversion_cost
+
+# Conversion Rate by Variable
+plot_conversion_cost <- function(conversion_cost, include_vars) {
+
+# Subset the data to exclude the specified variables
+conversion_cost <- conversion_cost[(conversion_cost$variable %in% include_vars), ]
+
+# Determine the number of columns to use
+n_cols <- min(2, ceiling(nrow(conversion_cost) / 2))
+
+# Plot the remaining data
+ggplot(conversion_cost, aes(x = group, y = ratio, fill = group)) +
+geom_col() +
+geom_text(aes(label = round(ratio, 2)), position = position_dodge(width = 0.9), vjust = 2.5) +
+labs(x = "", y = "") +
+ggtitle("Cost per Conversion") +
+facet_wrap(~ variable, ncol = n_cols, scales = "free_y") +
+theme(plot.title = element_text(hjust = 0.5))
+}
+
+# Vars Selection
+include_vars <- c('Spend (USD)', 'Impressions', 'Reach', 'Website Clicks', 'Searches', 'View Content', 'Add to Cart', 'Purchase')
+
+# 'Spend (USD)', 'Impressions', 'Reach', 'Website Clicks', 'Searches', 'View Content', 'Add to Cart', 'Purchase'
+plot_conversion_cost(conversion_cost, include_vars)
+
+```
+
+***Engagement Rate***
+***Reach***
+
+```{r, Conversion Rate}
+#################### Conversion Rate
+
+# Conversion Rate DataFrame
+  
+conversion_rate <- combined_data %>%
+  group_by(group, variable) %>%
+  summarise(sum = sum(value)) %>%
+  mutate(ratio = sum / ifelse(variable != "Purchase", sum(sum[variable == "Purchase"]), NA)) %>%
+  filter(variable != "Purchase")
+
+# Conversion Rate Plot by Variable
+plot_conversion_rate <- function(conversion_rate, include_vars) {
+
+# Subset the data to exclude the specified variables
+conversion_rate <- conversion_rate[(conversion_rate$variable %in% include_vars), ]
+
+# Determine the number of columns to use
+n_cols <- min(2, ceiling(nrow(conversion_rate) / 2))
+
+# Plot the remaining data
+ggplot(conversion_rate, aes(x = group, y = ratio, fill = group)) +
+geom_col() +
+geom_text(aes(label = round(ratio, 4)), position = position_dodge(width = 0.9), vjust = 2.5) +
+labs(x = "", y = "") +
+ggtitle("Conversion Rates") +
+facet_wrap(~ variable, ncol = n_cols, scales = "free_y") +
+theme(plot.title = element_text(hjust = 0.5))
+}
+
+# Variable Selection:'Spend (USD)', 'Impressions', 'Reach', 'Website Clicks', 'Searches', 'View Content', 'Add to Cart', 'Purchase'
+include_vars <- c('Spend (USD)', 'Impressions', 'Reach', 'Website Clicks', 'Searches', 'View Content', 'Add to Cart', 'Purchase')
+
+# Run Function
+plot_conversion_rate(conversion_rate, include_vars)
+
+```
+
+***X is Cost/Purchase, Y is Purchase 
+
+```{r, Density Plot DataFrame and Plotting for Spend vs. Purchase}
+
+combined_data
+# Combined Data Filter Check
+combined_data %>%
+  filter(variable %in% c("Spend (USD)", "Purchase")) %>%
+  pivot_wider(names_from = c(variable, group), values_from = value) %>%
+  select(-Weekday) %>%
+  mutate(average_bidding =  `Spend (USD)_average_bidding` / `Purchase_average_bidding`,
+         maximum_bidding =  `Spend (USD)_maximum_bidding` / `Purchase_maximum_bidding`) %>%
+  groupby(group)
+
+# Density Plot Spend vs. Purchase
+combined_data %>%
+  filter(variable %in% c("Spend (USD)", "Purchase")) %>%
+  pivot_wider(names_from = c(variable, group), values_from = value) %>%
+  select(-Weekday) %>%
+  mutate(average_bidding =  `Spend (USD)_average_bidding` / `Purchase_average_bidding`,
+         maximum_bidding =  `Spend (USD)_maximum_bidding` / `Purchase_maximum_bidding`) %>%
+  ggplot(aes(x = average_bidding)) +
+  geom_density(aes(fill = "average_bidding"), alpha = 0.5) +
+  geom_density(aes(x = maximum_bidding, fill = "maximum_bidding"), alpha = 0.5) +
+  scale_fill_manual(values = c("average_bidding" = "red", "maximum_bidding" = "green")) +
+  ggtitle("Density Plot Overlay of Control vs Test")
+
+```
+
+```{r, t-test for Spend vs. Purchase}
+
+# how many more days would be needed --> power analysis
+
+'Two-Sample t-Test: This test can be used to compare the means of two independent groups to see if there is a significant difference in their means.
+
+Wilcoxon Rank-Sum Test: This test is a non-parametric alternative to the two-sample t-test, and can be used to compare the means of two independent groups when the data is not normally distributed.
+
+Mann-Whitney U Test: This test is another non-parametric alternative to the two-sample t-test, and can be used to compare the medians of two independent groups.
+
+Analysis of Variance (ANOVA): This test can be used to compare the means of three or more independent groups to see if there is a significant difference in their means.
+
+Kruskal-Wallis Test: This test is a non-parametric alternative to ANOVA, and can be used to compare the medians of three or more independent groups.
+
+chi-square test of independence: This test can be used to determine if there is a relationship between two categorical variables'
+
+```
+
+
+***Update this code to adjust filters for various ratios***
+# Cost per Conversion: Spend / Select Variable
+# Conversion Rate: Variable (purchase or add to cart) / Spend, Clicks, Impressions, Etc
+
+```{r, permutation test}
+
+# filter data for Spend to Purchase Ratio ** Is this the correct term**
+
+perm_filter <-
+  combined_data %>%
+  filter(variable %in% c("Spend (USD)", "Purchase")) %>%
+  pivot_wider(names_from = c(variable, group), values_from = value) %>%
+  select(-Weekday) %>%
+  mutate(average_bidding =  `Spend (USD)_average_bidding` / `Purchase_average_bidding`,
+         maximum_bidding =  `Spend (USD)_maximum_bidding` / `Purchase_maximum_bidding`)
+
+# Split the data into two groups
+group1 <- perm_filter %>% select(average_bidding)
+group2 <- perm_filter %>% select(maximum_bidding)
+
+# Combined Data Filter Check
+
+# Calculate the test statistic for the original groups
+original_mean_difference <- mean(group1$average_bidding) - mean(group2$maximum_bidding)
+
+# Permute the data
+set.seed(123) # for reproducibility
+n_permutations <- 10000
+permuted_mean_differences <- c()
+
+# Run 10,000 Permutations
+for (i in 1:n_permutations) {
+  permuted_data <- sample(c(group1$average_bidding, group2$maximum_bidding))
+  permuted_group1 <- permuted_data[1:nrow(group1)]
+  permuted_group2 <- permuted_data[(nrow(group1)+1):(nrow(group1)+nrow(group2))]
+  permuted_mean_difference <- mean(permuted_group1) - mean(permuted_group2)
+  permuted_mean_differences[i] <- permuted_mean_difference
+}
+
+# Calculate the p-value
+p_value <- mean(abs(permuted_mean_differences) >= abs(original_mean_difference))
+
+# Interpret results
+if (p_value < 0.05) {
+  cat("The p-value is", p_value, "... which is less than 0.05.\n")
+  cat("We reject the null hypothesis that the two groups have the same mean.\n")
+  cat("Therefore, we conclude that there IS a significant difference in mean between the two groups\n")
+  cat("Meaning, we've statistically confirmed that....")
+} else {
+  cat("The p-value is", p_value, "... which is not less than 0.05.")
+  cat("We fail to reject the null hypothesis that the two groups have the same mean.\n")
+  cat("Therefore, we conclude that there IS NOT a significant difference in mean between the two groups.")
+}
+
+```
+
+```{r, two-sample t-test: test the difference between the means of two groups}
+
+library(tidyverse)
+
+# Filter the data for Spend to Purchase Ratio
+t_test_filter <-
+  combined_data %>%
+  filter(variable %in% c("Spend (USD)", "Purchase")) %>%
+  pivot_wider(names_from = c(variable, group), values_from = value) %>%
+  select(-Weekday) %>%
+  mutate(average_bidding =  `Spend (USD)_average_bidding` / `Purchase_average_bidding`,
+         maximum_bidding =  `Spend (USD)_maximum_bidding` / `Purchase_maximum_bidding`)
+
+# Split the data into two groups
+group1 <- t_test_filter %>% select(average_bidding)
+group2 <- t_test_filter %>% select(maximum_bidding)
+
+# Run t-test
+t.test(group1$average_bidding, group2$maximum_bidding)
+
+# t-test Result
+t_test_result <- t.test(group1$average_bidding, group2$maximum_bidding)
+
+# Extract the p-value from the test result
+p_value <- t_test_result$p.value
+
+# Interpret the results
+if (p_value < 0.05) {
+cat("The p-value is", p_value, "... which is less than 0.05.\n")
+cat("We reject the null hypothesis that the two groups have the same mean.\n")
+cat("Therefore, we conclude that there IS a significant difference in mean between the two groups\n")
+cat("Meaning, we've statistically confirmed that....")
+} else {
+cat("The p-value is", p_value, "... which is not less than 0.05.")
+cat("We fail to reject the null hypothesis that the two groups have the same mean.\n")
+cat("Therefore, we conclude that there IS NOT a significant difference in mean between the two groups.")
+}
+
+```
+
+```{r, Wilcox Test: test the difference between the medians of two groups}
+
+# Wilcoxon Rank Sum Test
+wilcox.test(group1$average_bidding, group2$maximum_bidding,"two.sided")
+
+# t-test Result
+wilcox_test_result <- wilcox.test(group1$average_bidding, group2$maximum_bidding,"two.sided")
+
+# Extract the p-value from the test result
+p_value <- wilcox_test_result$p.value
+
+# Interpret the results
+if (p_value < 0.05) {
+cat("The p-value is", p_value, "... which is less than 0.05.\n")
+cat("We reject the null hypothesis that the two groups have the same mean.\n")
+cat("Therefore, we conclude that there IS a significant difference in mean between the two groups\n")
+cat("Meaning, we've statistically confirmed that....")
+} else {
+cat("The p-value is", p_value, "... which is not less than 0.05.")
+cat("We fail to reject the null hypothesis that the two groups have the same mean.\n")
+cat("Therefore, we conclude that there IS NOT a significant difference in mean between the two groups.")
+}
+
+```
+
+```{r, regression models}
+
+# 'Spend (USD)', 'Impressions', 'Reach', 'Website Clicks', 'Searches', 'View', 'Content', 'Add to Cart', 'Purchase'      
+
+# Select the Variable
+target = 'Purchase'
+predictor = 'Spend (USD)'
+
+
+# Filter the data for reach and website clicks
+reach_clicks_filter <-
+  combined_data %>%
+  filter(variable %in% c(target, predictor))
+
+# Split the data into two groups
+group1 <- reach_clicks_filter %>% 
+  filter(group == "average_bidding")
+group2 <- reach_clicks_filter %>% 
+  filter(group == "maximum_bidding")
+
+unique(combined_data$variable)
+group1
+# Linear Regression for average_bidding group
+model1 <- lm(target ~ predictor, data = group1)
+summary(model1)
+
+# Linear Regression for maximum_bidding group
+model2 <- lm(`Website Clicks` ~ Reach, data = group2)
+summary(model2)
+```
+
+**Power Analysis**
+
+```{r, Power Analysis}
+
+library(pwr)
+
+# Get the delta
+# Combined Data Filter Check
+delta = combined_data %>%
+          filter(variable %in% c("Spend (USD)", "Purchase")) %>%
+          pivot_wider(names_from = c(variable, group), values_from = value) %>%
+          select(-Weekday) %>%
+          mutate(average_bidding =  `Spend (USD)_average_bidding` / `Purchase_average_bidding`,
+                 maximum_bidding =  `Spend (USD)_maximum_bidding` / `Purchase_maximum_bidding`) %>%
+          summarize(delta = mean(average_bidding - maximum_bidding))
+
+# extract delta
+delta = delta$delta
+
+# Parameters for the power analysis
+n1 = NULL # sample size of group 1 (control)
+n2 = 29   # sample size of group 2 (test)
+delta = delta    # effect size, difference in means between the two groups
+alpha = 0.05     # significance level
+power = 0.95     # desired power (probability of correctly detecting a difference between two groups)
+
+# Perform the power analysis
+result <- pwr.t.test(n = n1, d = delta, sig.level = alpha, power = power, type = "two.sample", alternative = "two.sided")
+
+# Print the results
+result
+
+# Continue for .94 days, if delta stays constant, than the difference becomes more significant
+```
+
+
+```{r, Descriptive Statistics Block (undeveloped)}
+
+# Set Column Names
+col_names <- c("Spend (USD)", "Impressions", "Reach", "Website Clicks", "Searches", "View Content", "Add to Cart", "Purchase")
+
+# Average Bidding Group
+means_avg_bidding <- colMeans(average_bidding[, col_names], na.rm = TRUE)
+stddevs_avg_bidding <- apply(average_bidding[, col_names], 2, sd, na.rm = TRUE)
+q1_avg_bidding <- apply(average_bidding[, col_names], 2, quantile, probs = c(0.25), na.rm = TRUE)
+q3_avg_bidding <- apply(average_bidding[, col_names], 2, quantile, probs = c(0.75), na.rm = TRUE)
+iqr_avg_bidding <- q3_avg_bidding - q1_avg_bidding
+
+desc_stats_avg_bidding <- data.frame(mean = means_avg_bidding, stddev = stddevs_avg_bidding,
+                                     q1 = q1_avg_bidding, q3 = q3_avg_bidding, iqr = iqr_avg_bidding)
+
+# Maximum Bidding Group
+means_max_bidding <- colMeans(maximum_bidding[, col_names], na.rm = TRUE)
+stddevs_max_bidding <- apply(maximum_bidding[, col_names], 2, sd, na.rm = TRUE)
+q1_max_bidding <- apply(maximum_bidding[, col_names], 2, quantile, probs = c(0.25), na.rm = TRUE)
+q3_max_bidding <- apply(maximum_bidding[, col_names], 2, quantile, probs = c(0.75), na.rm = TRUE)
+iqr_max_bidding <- q3_max_bidding - q1_max_bidding
+
+desc_stats_max_bidding <- data.frame(mean = means_max_bidding, stddev = stddevs_max_bidding,
+                                     q1 = q1_max_bidding, q3 = q3_max_bidding, iqr = iqr_max_bidding)
+
+```
+
+
+
+
+
+```{r, Single Variable Comparison Daily View}
+
+# Plot Spend (USD) column
+ggplot(data = average_bidding) + 
+  geom_line(aes(x = Date, y = `Spend (USD)`, color = "Average Bidding")) +
+  geom_line(data = maximum_bidding, aes(x = Date, y = `Spend (USD)`, color = "Maximum Bidding")) +
+  ggtitle("Spend (USD) Over Time") + 
+  xlab("Date") + 
+  ylab("Spend (USD)") + 
+  scale_color_manual(values = c("Average Bidding" = "blue", "Maximum Bidding" = "red"))
+
+# Plot Impressions column
+ggplot(data = average_bidding) + 
+  geom_line(aes(x = Date, y = Impressions, color = "Average Bidding")) +
+  geom_line(data = maximum_bidding, aes(x = Date, y = Impressions, color = "Maximum Bidding")) +
+  ggtitle("Impressions Over Time") + 
+  xlab("Date") + 
+  ylab("Impressions") + 
+  scale_color_manual(values = c("Average Bidding" = "blue", "Maximum Bidding" = "red"))
+
+# Plot Reach column
+ggplot(data = average_bidding) + 
+  geom_line(aes(x = Date, y = Reach, color = "Average Bidding")) +
+  geom_line(data = maximum_bidding, aes(x = Date, y = Reach, color = "Maximum Bidding")) +
+  ggtitle("Reach Over Time") + 
+  xlab("Date") + 
+  ylab("Reach") + 
+  scale_color_manual(values = c("Average Bidding" = "blue", "Maximum Bidding" = "red"))
+
+# Plot Website Clicks column
+ggplot(data = average_bidding) + 
+  geom_line(aes(x = Date, y = `Website Clicks`, color = "Average Bidding")) +
+  geom_line(data = maximum_bidding, aes(x = Date, y = `Website Clicks`, color = "Maximum Bidding")) +
+  ggtitle("Website Clicks Over Time") + 
+  xlab("Date") + 
+  ylab("Website Clicks") + 
+  scale_color_manual(values = c("Average Bidding" = "blue", "Maximum Bidding" = "red"))
+
+# Can be used to compare one variables in daily, weekly, monthly
 
 ```
 
@@ -77,408 +820,3 @@ print(paste("Number of columns in maximum_bidding: ", ncol(maximum_bidding)))
 
 
 ```
-
-
-```{r, Data Cleaning Block}
-
-# Change the column names
-column_names <- c("Campaign Name", "Date", "Spend (USD)",
-                  "Impressions", "Reach", "Website Clicks", 
-                  "Searches", "View Content", "Add to Cart", 
-                  "Purchase")
-colnames(maximum_bidding) <- column_names
-colnames(average_bidding) <- column_names
-
-# Remove the rows with column labels
-average_bidding <- average_bidding[-1,] 
-maximum_bidding <- maximum_bidding[-1,]       
-
-# Change the data type of columns to integer
-numeric_cols <- c("Spend (USD)", "Impressions", "Reach", "Website Clicks", 
-                  "Searches", "View Content", "Add to Cart", "Purchase")
-average_bidding[, numeric_cols] <- sapply(average_bidding[, numeric_cols], as.integer)
-maximum_bidding[, numeric_cols] <- sapply(maximum_bidding[, numeric_cols], as.integer)
-
-# Change the data type of the date column to Date
-average_bidding$Date <- as.Date(average_bidding$Date, "%d.%m.%Y")
-maximum_bidding$Date <- as.Date(maximum_bidding$Date, "%d.%m.%Y")
-
-# Check for missing values
-average_bidding_missing <- which(is.na(average_bidding) | average_bidding == "", arr.ind = TRUE)
-average_bidding_missing_count <- sum(is.na(average_bidding))
-maximum_bidding_missing <- which(is.na(maximum_bidding) | maximum_bidding == "", arr.ind = TRUE)
-maximum_bidding_missing_count <- sum(is.na(maximum_bidding))
-
-# Remove rows with missing values
-average_bidding <- average_bidding[-5, ] # 7 Missing Values in this row 
-maximum_bidding <- maximum_bidding[-5, ] # Removing to balance data
-
-# Reset the row numbers
-rownames(average_bidding) <- 1:nrow(average_bidding)
-rownames(maximum_bidding) <- 1:nrow(maximum_bidding)
-
-# Add Day of Week
-average_bidding$day_of_week <- weekdays(average_bidding$Date)
-maximum_bidding$day_of_week <- weekdays(maximum_bidding$Date)
-
-```
-
-```{r, Combining DataFrames for Futher Plotting}
-
-# Melt the data into long format
-columns_to_melt <- c("Spend (USD)", "Impressions", "Reach",
-                     "Website Clicks", "Searches", "View Content",
-                     "Add to Cart", "Purchase")
-
-average_bidding_melt <- melt(average_bidding, id.vars = "Date", measure.vars = columns_to_melt)
-maximum_bidding_melt <- melt(maximum_bidding, id.vars = "Date", measure.vars = columns_to_melt)
-
-# Add a column indicating the group (average_bidding or maximum_bidding)
-average_bidding_melt$group <- "average_bidding"
-maximum_bidding_melt$group <- "maximum_bidding"
-
-# Combine the two melted data frames into one data frame
-combined_data <- rbind(average_bidding_melt, maximum_bidding_melt)
-
-# Add day of week
-combined_data$day_of_week <- weekdays(combined_data$Date)
-average_bidding_melt$day_of_week <- weekdays(average_bidding_melt$Date)
-maximum_bidding_melt$day_of_week <- weekdays(maximum_bidding_melt$Date)
-
-combined_data
-
-```
-
-```{r, Comparing Single Variables Between Groups, One Plot At A Time}
-
-# Plot Spend (USD) column
-ggplot(data = average_bidding) + 
-  geom_line(aes(x = Date, y = `Spend (USD)`, color = "Average Bidding")) +
-  geom_line(data = maximum_bidding, aes(x = Date, y = `Spend (USD)`, color = "Maximum Bidding")) +
-  ggtitle("Spend (USD) Over Time") + 
-  xlab("Date") + 
-  ylab("Spend (USD)") + 
-  scale_color_manual(values = c("Average Bidding" = "blue", "Maximum Bidding" = "red"))
-
-# Plot Impressions column
-ggplot(data = average_bidding) + 
-  geom_line(aes(x = Date, y = Impressions, color = "Average Bidding")) +
-  geom_line(data = maximum_bidding, aes(x = Date, y = Impressions, color = "Maximum Bidding")) +
-  ggtitle("Impressions Over Time") + 
-  xlab("Date") + 
-  ylab("Impressions") + 
-  scale_color_manual(values = c("Average Bidding" = "blue", "Maximum Bidding" = "red"))
-
-# Plot Reach column
-ggplot(data = average_bidding) + 
-  geom_line(aes(x = Date, y = Reach, color = "Average Bidding")) +
-  geom_line(data = maximum_bidding, aes(x = Date, y = Reach, color = "Maximum Bidding")) +
-  ggtitle("Reach Over Time") + 
-  xlab("Date") + 
-  ylab("Reach") + 
-  scale_color_manual(values = c("Average Bidding" = "blue", "Maximum Bidding" = "red"))
-
-# Plot Website Clicks column
-ggplot(data = average_bidding) + 
-  geom_line(aes(x = Date, y = `Website Clicks`, color = "Average Bidding")) +
-  geom_line(data = maximum_bidding, aes(x = Date, y = `Website Clicks`, color = "Maximum Bidding")) +
-  ggtitle("Website Clicks Over Time") + 
-  xlab("Date") + 
-  ylab("Website Clicks") + 
-  scale_color_manual(values = c("Average Bidding" = "blue", "Maximum Bidding" = "red"))
-
-
-```
-
-
-
-```{r, Comparing All Variables of Both Groups in By Day of Week to See the Performance Differences by Day}
-
-# Varible By Day of The Week
-
-average_bidding_melt %>% 
-  group_by(day_of_week, variable) %>% 
-  summarise(sum_of_values = sum(value)) %>% 
-  ggplot(aes(x = day_of_week, y = sum_of_values, fill = variable)) + 
-  geom_col() + 
-  labs(x = "Day of the week", y = "Sum of values") + 
-  ggtitle("Sum of values by day of the week and variable") + 
-  facet_wrap(~ variable, ncol = 1,scales = "free_y")
-
-# Percent of Total by Day of Week
-
-average_bidding_melt %>%
-  group_by(day_of_week, variable) %>%
-  summarise(sum_of_values = sum(value)) %>%
-  group_by(variable) %>%
-  mutate(percent_of_total = sum_of_values / sum(sum_of_values) * 100) %>%
-  ggplot(aes(x = day_of_week, y = percent_of_total, fill = variable)) +
-  geom_col() +
-  geom_text(aes(label = sprintf("%1.1f%%", percent_of_total)), position = position_fill(vjust = 0.75)) +
-  labs(x = "Day of the week", y = "Percent of total") +
-  ggtitle("Percent of total by day of the week and variable") +
-  facet_wrap(~ variable, ncol = 1, scales = "free_y")
-
-# As a ratio of spend: can adjust for other ratios
-
-combined_data %>% 
-  group_by(day_of_week, variable) %>% 
-  summarise(sum_of_values = sum(value)) %>% 
-  mutate(ratio = sum(sum_of_values[variable == "Spend (USD)"]) / sum_of_values) %>% 
-  ggplot(aes(x = day_of_week, y = ratio, fill = variable)) + 
-  geom_col() + 
-  geom_text(aes(label = round(ratio, 2)), position = position_dodge(width = 0.9), vjust = -0.25) +
-  labs(x = "Day of the week", y = "Ratio") + 
-  ggtitle("Ratio of each variable to spend by day of the week") + 
-  facet_wrap(~ variable, ncol = 1,scales = "free_y")
-
-# We can analyize these groups to see how much our costs are per action per day of the week
-# 
-
-```
-
-```{r, EDA for Plotting by Day of Week}
-
-# Spend By Day of The Week as Sum
-combined_data %>%
-  filter(variable == "Spend (USD)") %>%
-  group_by(day_of_week) %>%
-  summarise(sum_of_values = sum(value)) %>% 
-  print(n = 200)
-
-# Spend By Day of The Week as Percentage
-combined_data %>%
-  filter(variable == "Spend (USD)") %>%
-  group_by(day_of_week) %>%
-  summarise(sum_of_values = sum(value)) %>% 
-  mutate(percent_of_total = sum_of_values / sum(sum_of_values) * 100)
-
-
-# All Variables by Day of The Week with Percentage
-combined_data %>%
-  group_by(day_of_week, variable) %>%
-  summarise(sum_of_values = sum(value)) %>%
-  group_by(variable) %>%
-  mutate(percent_of_total = sum_of_values / sum(sum_of_values) * 100)
-
-# Ratio of Spend to Every Variable of the group
-combined_data %>%
-  group_by(day_of_week, variable) %>%
-  summarise(sum_of_values = sum(value)) %>%
-  mutate(ratio = ifelse(variable != "Spend (USD)", sum_of_values / sum(sum_of_values[variable == "Spend (USD)"]), NA))
-
-
-```
-
-```{r, Facet Wrap Comparison of All Variable Daily Values to Compare Both Groups}
-
-# Facet bar plot
-ggplot(combined_data, aes(x = Date, y = value, fill = group)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  facet_wrap(~variable, scales = "free_y") +
-  ggtitle("Bar Plot Comparison") +
-  theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5),
-        axis.text.x = element_text(angle = 90, hjust = 1))
-
-# Facet line plot
-ggplot(combined_data, aes(x = Date, y = value, color = group)) +
-  geom_line(aes(group = group)) +
-  facet_wrap(~variable, scales = "free_y") +
-  ggtitle("Line Plot Comparison") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
-# Stacked Plots
-ggplot(combined_data, aes(x = Date, y = value, fill = group)) +
-  geom_area(position = "stack") +
-  ggtitle("Stacked Plot Comparsion") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  facet_wrap(~variable, scales = "free_y")
-
-# Can Use This Analysis to Easily Spot Outliers
-
-```
-
-```{r, Monthly Data EDA and Graphing}
-
-# Aggregate data to get sum of each column
-monthly_data <- combined_data %>%
-  group_by(group,variable) %>%
-  summarize(sum = sum(value))
-
-# Cost per Variable
-monthly_data_ratio <- combined_data %>%
-  group_by(group, variable) %>%
-  summarise(sum = sum(value)) %>%
-  mutate(ratio = ifelse(variable != "Spend (USD)", sum(sum[variable == "Spend (USD)"]), NA) / sum) %>%
-  filter(variable != "Spend (USD)")
-  monthly_data_ratio
-  
-# Purchases per Variable
-monthly_data_ratio_purchase <- combined_data %>%
-  group_by(group, variable) %>%
-  summarise(sum = sum(value)) %>%
-  mutate(ratio = sum / ifelse(variable != "Purchase", sum(sum[variable == "Purchase"]), NA)) %>%
-  filter(variable != "Purchase")
-  monthly_data_ratio_purchase
-
-
-# Validating the Sum of Values
-average_bidding %>%
-  summarize(
-    Spend = sum(`Spend (USD)`),
-    Impressions = sum(Impressions),
-    Reach = sum(Reach),
-    Website_Clicks = sum(`Website Clicks`),
-    Searches = sum(Searches),
-    View_Content = sum(`View Content`),
-    Add_to_Cart = sum(`Add to Cart`),
-    Purchase = sum(`Purchase`)
-  )
-# average_bidding 66818	3177233	2576503	154303	64418	56370	37700	15161
-# maximum_bidding 74595	2123249	1509609	175107	70463	54882	25490	14869
-
-# Sum of Each Variable for the Period
-ggplot(monthly_data, aes(x = group, y = sum, fill = group)) +
-  geom_bar(stat = "identity", position = "stack") +
-  geom_text(aes(label = round(sum)), position = position_stack(vjust = 0.5)) +
-  facet_wrap(~variable, scales = "free_y",ncol=2) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
-# Cost of Each Variable
-ggplot(monthly_data_ratio, aes(x = group, y = ratio, fill = variable)) +
-  geom_col() +
-  geom_text(aes(label = round(ratio, 2)), position = position_dodge(width = 0.9), vjust = -0.25) +
-  labs(x = "Group", y = "Ratio to Spend") +
-  ggtitle("Ratio of each variable to Spend by Group") +
-  facet_wrap(~ variable, ncol = 1,scales = "free_y") +
-  theme(plot.title = element_text(hjust = 0.5))
-
-# Purchase to Variable Ratio
-ggplot(monthly_data_ratio_purchase, aes(x = group, y = ratio, fill = variable)) +
-  geom_col() +
-  geom_text(aes(label = round(ratio, 2)), position = position_dodge(width = 0.9), vjust = -0.25) +
-  labs(x = "Group", y = "Ratio to Spend") +
-  ggtitle("Ratio of each variable to Spend by Group") +
-  facet_wrap(~ variable, ncol = 1,scales = "free_y") +
-  theme(plot.title = element_text(hjust = 0.5))
-
-
-# Needed less impressions, clicks, and add-to-carts to get to a purchase with Maximum Bidding
-# Why was the spend higher, impressions and reach lower, Clicks, Searches Lower, with better Add-to-cart to Purchase Ratios?
-```
-
-```{r}
-agg_data$ratio <- 0
-
-# Calculate the ratio of each variable to spend for the control group
-agg_data$ratio[agg_data$variable != "Spend (USD)" & agg_data$group == "control"] <-  agg_data$sum[agg_data$variable == "Spend (USD)" & agg_data$group == "control"] / agg_data$sum[agg_data$variable != "Spend (USD)" & agg_data$group == "control"]
-
-# Calculate the ratio of each variable to spend for the test group
-agg_data$ratio[agg_data$variable != "Spend (USD)" & agg_data$group == "test"] <- agg_data$sum[agg_data$variable == "Spend (USD)" & agg_data$group == "test"] / agg_data$sum[agg_data$variable != "Spend (USD)" & agg_data$group == "test"]
-
-ggplot(subset(agg_data, variable != "Spend (USD)"), aes(x = group, y = ratio, fill = group)) +
-  geom_bar(stat="identity", position="stack") +
-  geom_text(aes(label=round(ratio, 2)), position=position_stack(vjust=0.5)) +
-  labs(x="Group", y="Ratio of Spend to Variable", fill="Group") +
-  theme_minimal() +
-  theme(axis.text.x=element_text(angle=45, hjust=1)) +
-  facet_wrap(~variable, ncol=1, scales="free_y")
-
-```
-
-
-# -------------------------------------------- Aggregated Data for the month
-
-
-# -------------------------------------------- Monthly Sales to Variable Ratio : Select the Variable for a Ratio
-
-# A statistical comparison to see if the values are significantly different basd on the number of obersvations
-
-# ------------ spend / purchase, t test, 2 sample t test
-combined_data spend/purchase, spend/purchase b, visualize in overlaying distribution of both
-t test value
-
-combined_data %>%
-  filter(variable %in% c("Spend (USD)", "Purchase"))
-
-combined_data %>%
-  filter(variable %in% c("Spend (USD)", "Purchase")) %>%
-  pivot_wider(names_from = c(variable, group), values_from = value) %>%
-  select(-day_of_week) %>%
-  mutate(control =  `Spend (USD)_control` / `Purchase_control`,
-         test =  `Spend (USD)_test` / `Purchase_test`)
-
-
-  ggplot(aes(x = control, y = test)) +
-  geom_point() +
-  labs(x = "Control", y = "Test") +
-  ggtitle("Control vs Test")
-
-combined_data %>%
-  filter(variable %in% c("Spend (USD)", "Purchase")) %>%
-  pivot_wider(names_from = c(variable, group), values_from = value) %>%
-  mutate(control =  `Spend (USD)_control` / `Purchase_control`,
-         test =  `Spend (USD)_test` / `Purchase_test`) %>%
-  select(control,test)  %>%
-  print(n=50)
-    
-combined_data %>%
-  filter(variable %in% c("Spend (USD)", "Purchase")) %>%
-  pivot_wider(names_from = c(variable, group), values_from = value) %>%
-  select(-day_of_week) %>%
-  mutate(control =  `Spend (USD)_control` / `Purchase_control`,
-         test =  `Spend (USD)_test` / `Purchase_test`) %>% 
-  ggplot(aes(x = control)) +
-  geom_density(aes(fill = "control"), alpha = 0.5) +
-  geom_density(aes(x = test, fill = "test"), alpha = 0.5) +
-  scale_fill_manual(values = c("control" = "red", "test" = "green")) +
-  ggtitle("Density Plot Overlay of Control vs Test")
-
-# Control test has lower spend per purchase
-
-# Statistical analysis
-
-control <- c(3.69, 3.44, 6.30, 5.71, 4.04, 5.10, 4.11, 5.61, 2.93, 5.24, 2.92, 3.52, 2.38, 7.58, 4.62, 9.81, 7.72, 4.79, 8.95, 2.25, 7.59, 3.26, 3.23, 5.08, 8.90, 3.41, 3.77, 7.11, 3.47)
-test <- c(11.8, 3.75, 4.09, 7.97, 5.04, 3.19, 6.77, 3.14, 10.1, 3.62, 3.99, 2.43, 7.46, 6.32, 6.32, 8.27, 7.70, 5.13, 3.72, 12.7, 10.5, 5.09, 7.72, 4.50, 8.14, 3.78, 3.12, 4.14, 3.46)
-
-t.test(control, test)
-
-wilcox.test(control, test, alternative = "two.sided")
-
-# more days of analysis may be needed
-# how many more days would be needed --> power analysis
-
-
-# analyize for outliers and anamolies
-
-```{r, Descriptive Statistics Block (undeveloped)}
-
-# Set Column Names
-col_names <- c("Spend (USD)", "Impressions", "Reach", "Website Clicks", "Searches", "View Content", "Add to Cart", "Purchase")
-
-# Average Bidding Group
-means_avg_bidding <- colMeans(average_bidding[, col_names], na.rm = TRUE)
-stddevs_avg_bidding <- apply(average_bidding[, col_names], 2, sd, na.rm = TRUE)
-q1_avg_bidding <- apply(average_bidding[, col_names], 2, quantile, probs = c(0.25), na.rm = TRUE)
-q3_avg_bidding <- apply(average_bidding[, col_names], 2, quantile, probs = c(0.75), na.rm = TRUE)
-iqr_avg_bidding <- q3_avg_bidding - q1_avg_bidding
-
-desc_stats_avg_bidding <- data.frame(mean = means_avg_bidding, stddev = stddevs_avg_bidding,
-                                     q1 = q1_avg_bidding, q3 = q3_avg_bidding, iqr = iqr_avg_bidding)
-
-# Maximum Bidding Group
-means_max_bidding <- colMeans(maximum_bidding[, col_names], na.rm = TRUE)
-stddevs_max_bidding <- apply(maximum_bidding[, col_names], 2, sd, na.rm = TRUE)
-q1_max_bidding <- apply(maximum_bidding[, col_names], 2, quantile, probs = c(0.25), na.rm = TRUE)
-q3_max_bidding <- apply(maximum_bidding[, col_names], 2, quantile, probs = c(0.75), na.rm = TRUE)
-iqr_max_bidding <- q3_max_bidding - q1_max_bidding
-
-desc_stats_max_bidding <- data.frame(mean = means_max_bidding, stddev = stddevs_max_bidding,
-                                     q1 = q1_max_bidding, q3 = q3_max_bidding, iqr = iqr_max_bidding)
-
-```
-
