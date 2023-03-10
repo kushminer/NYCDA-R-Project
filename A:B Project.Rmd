@@ -5,27 +5,27 @@ output: html_notebook
 
 ```{text, Project Goal}
 
-  Our company recently introduced a new bidding type, “average bidding”,
-as an alternative to its existing bidding type, “maximum bidding”. 
+  A client wants to A/B test to understand if average bidding brings more conversions than maximum bidding.
  
-  One of our clients wants to test this new feature and A/B test to understand if average bidding brings more conversions than maximum bidding.
- 
-  The A/B test ran for 1 month and the client now expects you to analyze and present the results of this A/B test.
+  The A/B test ran for 1 month and now the client wants you to analyze and present the findings
   
 -- -- -- 
 
-average will not go above the max
-maxmimum bid is you will max bid
+average will not go above the max on average
+maximum bid is you will max bid
 
   
 ```
 
 
 ```{r, Import Block}
+
+library(tidyr)
 library(dplyr)
 library(ggplot2)
 library(reshape2)
-library(tidyr)
+library(tidyverse)
+
 
 average_bidding <- read.csv("control_group.csv", sep = ";", header = F)
 maximum_bidding <- read.csv("test_group.csv", sep = ";", header = F)
@@ -83,7 +83,19 @@ maximum_bidding$Weekday <- weekdays(maximum_bidding$Date)
 
 average_bidding
 maximum_bidding
+
+# Change Campaign Name ***TBD***
+average_bidding %>%
+  mutate('Campaign Name' = ifelse('Campaign Name' == 'Campaign Name', "Average Bidding"))
+
 ```
+
+```{r, Outliers}
+
+colnames(average_bidding)
+
+```
+
 
 ```{r, Merging Data}
 
@@ -109,6 +121,34 @@ combined_data
 
 ```
 
+```{r, Box Plot}
+
+library(ggplot2)
+
+# Select Variable: 
+# "Spend (USD)", "Impressions", "Reach", "Website Clicks", "Searches", "View Content", "Add to Cart", "Purchase"
+include_vars <- c("Spend (USD)", "Impressions", "Reach", "Website Clicks", "Searches", "View Content", "Add to Cart", "Purchase")
+
+# Modify DataFrame and Plot
+combined_data %>%
+  pivot_wider(names_from = c(variable), values_from = value) %>%
+  select(group, one_of(include_vars)) %>%
+  gather(variable, value, -group) %>%
+  mutate(variable = 
+           reorder(variable, 
+                   as.numeric(factor(variable, 
+                                     levels = include_vars)))) %>%
+  ggplot(aes(x = group, y = value, fill = group)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("lightblue", "darkblue")) +
+  labs(x = "Bidding Type", y = "Value") +
+  theme_classic() +
+  facet_wrap(~variable,ncol = 1, scales = "free_y")
+
+```
+
+
+
 ***Show The Varaible Counts***
 
 ```{r, Select Date and Variable}
@@ -133,10 +173,16 @@ compare_bidding_by_day_and_variable <- function(date, variable, average_bidding,
   combined_data <- rbind(average_bidding_day, maximum_bidding_day)
 
   # Comparison Plot
-  ggplot(combined_data, aes(x = `Campaign Name`, y = as.numeric(combined_data[,variable]), fill = `Campaign Name`)) +
+  ggplot(combined_data, 
+         aes(x = `Campaign Name`,
+             y = as.numeric(combined_data[,variable]),
+             fill = `Campaign Name`)) +
     geom_bar(stat = "identity") +
-    labs(x = "Campaign Name", y = variable) +
-    ggtitle(paste0("Comparison of ", variable, " between Average Bidding and Maximum Bidding")) +
+    geom_text(aes(label = as.integer(combined_data[,variable]), 
+                  y = as.numeric(combined_data[,variable])),
+              position = position_stack(vjust = 0.5)) +
+    labs(x = "", y = '') +
+    ggtitle(paste0(variable)) +
     scale_fill_discrete(name = "Campaign Name", labels = c("Average Bidding", "Maximum Bidding")) +
     theme_minimal()
 }
@@ -167,7 +213,7 @@ plot_variable <- function(variable, average_bidding, maximum_bidding) {
 
 # Example usage:
 variable = 'Spend (USD)'
-# Spend (USD) Impressions Reach Website Clicks Searches View Content Add to Cart    Purchase 
+# Spend (USD) Impressions Reach Website Clicks Searches View Content Add to Cart Purchase 
 plot_variable(variable, average_bidding, maximum_bidding)
 
 
@@ -199,14 +245,31 @@ plot_variables(x_variable, y_variable, average_bidding, maximum_bidding)
 
 ```{r, Daily Facet Wrap}
 
-# Daily: Facet bar plot
+# Select Variable
+include_vars <- c('Spend (USD)', 'Impressions', 'Reach')
+# 'Spend (USD)', 'Impressions', 'Reach', 'Website Clicks',  'Searches', 'View', 'Content', 'Add to Cart', 'Purchase' 
+
+
+# Box Plot Plus Histogram
 ggplot(combined_data, aes(x = Date, y = value, fill = group)) +
   geom_bar(stat = "identity", position = "dodge") +
-  facet_wrap(~variable, scales = "free_y") +
+  geom_boxplot(alpha = 0.5) +
+  facet_wrap(~variable, scales = "free_y",ncol = 2) +
+  ggtitle("Bar Plot Comparison with Outliers") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+  axis.text.x = element_text(angle = 90, hjust = 1))
+
+# Daily: Facet bar plot
+combined_data %>%
+  filter(variable %in% include_vars) %>%
+  ggplot(aes(x = Date, y = value, fill = group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~variable, scales = "free_y",ncol = 2) +
   ggtitle("Bar Plot Comparison") +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5),
-        axis.text.x = element_text(angle = 90, hjust = 1))
+  axis.text.x = element_text(angle = 90, hjust = 1))
 
 # Daily: Facet line plot
 ggplot(combined_data, aes(x = Date, y = value, color = group)) +
@@ -226,45 +289,62 @@ ggplot(combined_data, aes(x = Date, y = value, fill = group)) +
 
 # Can Use This Analysis to Easily Spot Outliers
 
-
+combined_data
 ```
-***Adjust to Even days of Week, Correct Code***
+***Balance Days of Week***
 
-```{r, DataFrames by Day of Week}
+```{r, Balance for Day of Week}
+
+combined_data
+
+# Compare by Average
+# Compare by Min
+# Compare by Max
 
 # Spend By Day of The Week as Sum
 combined_data %>%
-  filter(variable == "Spend (USD)") %>%
-  group_by(day_of_week) %>%
-  summarise(sum_of_values = sum(value)) %>% 
-  print(n = 200)
+  group_by(Weekday, variable) %>%
+  filter(variable == 'Spend (USD)') %>%
+  summarize(value = sum(value))
+
+# Weekdays Count
+combined_data %>%
+  group_by(Weekday) %>%
+  summarize(count = n())
+
+# Weekdays Count per Variable
+combined_data %>%
+  group_by(Weekday,variable) %>%
+  summarize(count = n())
+
+# Number of Days
+start_date <- min(combined_data$Date)
+end_date <- max(combined_data$Date)
+num_days <- as.numeric(difftime(end_date, start_date, units = "days"))
+num_days
+
+# Count per Variable
+combined_data %>%
+  group_by(variable) %>%
+  summarize(count = n())
+
+58*8
+8*2 = 16
+
+unique(combined_data$variable)
 
 # Spend By Day of The Week as Percentage
-combined_data %>%
-  filter(variable == "Spend (USD)") %>%
-  group_by(day_of_week) %>%
-  summarise(sum_of_values = sum(value)) %>% 
-  mutate(percent_of_total = sum_of_values / sum(sum_of_values) * 100)
-
 
 # All Variables by Day of The Week with Percentage
-combined_data %>%
-  group_by(day_of_week, variable) %>%
-  summarise(sum_of_values = sum(value)) %>%
-  group_by(variable) %>%
-  mutate(percent_of_total = sum_of_values / sum(sum_of_values) * 100)
 
-# Ratio of Spend to Every Variable of the group
-combined_data %>%
-  group_by(day_of_week, variable) %>%
-  summarise(sum_of_values = sum(value)) %>%
-  mutate(ratio = ifelse(variable != "Spend (USD)", sum_of_values / sum(sum_of_values[variable == "Spend (USD)"]), NA))
-
+# Conversion Cost
+# Conversion Rate
 
 ```
 
 
 ```{r, Plot Performance by Day of Week}
+
 # Variable By Day of The Week
 
 combined_data %>% 
@@ -405,7 +485,7 @@ ggplot(conversion_cost, aes(x = group, y = ratio, fill = group)) +
 geom_col() +
 geom_text(aes(label = round(ratio, 2)), position = position_dodge(width = 0.9), vjust = 2.5) +
 labs(x = "", y = "") +
-ggtitle("Cost per Conversion") +
+ggtitle("$ Cost for each Conversion") +
 facet_wrap(~ variable, ncol = n_cols, scales = "free_y") +
 theme(plot.title = element_text(hjust = 0.5))
 }
@@ -418,8 +498,6 @@ plot_conversion_cost(conversion_cost, include_vars)
 
 ```
 
-***Engagement Rate***
-***Reach***
 
 ```{r, Conversion Rate}
 #################### Conversion Rate
@@ -429,10 +507,14 @@ plot_conversion_cost(conversion_cost, include_vars)
 conversion_rate <- combined_data %>%
   group_by(group, variable) %>%
   summarise(sum = sum(value)) %>%
-  mutate(ratio = sum / ifelse(variable != "Purchase", sum(sum[variable == "Purchase"]), NA)) %>%
+  mutate(ratio = ifelse(variable != "Purchase",
+                        sum(sum[variable == "Purchase"])/sum,
+                        NA)*100) %>%
   filter(variable != "Purchase")
 
-# Conversion Rate Plot by Variable
+conversion_rate
+
+# Converion Rate Plot by Variable
 plot_conversion_rate <- function(conversion_rate, include_vars) {
 
 # Subset the data to exclude the specified variables
@@ -443,23 +525,138 @@ n_cols <- min(2, ceiling(nrow(conversion_rate) / 2))
 
 # Plot the remaining data
 ggplot(conversion_rate, aes(x = group, y = ratio, fill = group)) +
-geom_col() +
-geom_text(aes(label = round(ratio, 4)), position = position_dodge(width = 0.9), vjust = 2.5) +
-labs(x = "", y = "") +
-ggtitle("Conversion Rates") +
-facet_wrap(~ variable, ncol = n_cols, scales = "free_y") +
-theme(plot.title = element_text(hjust = 0.5))
-}
+  geom_col() +
+  geom_text(aes(label = round(ratio, 2)), position = position_dodge(width = 0.9), vjust = 2.5) +
+  labs(x = "", y = "") +
+  ggtitle("Conversion Rate (% who Purchased)") +
+  facet_wrap(~ variable, ncol = n_cols, scales = "free_y") +
+  theme(plot.title = element_text(hjust = 0.5))
+  }
 
 # Variable Selection:'Spend (USD)', 'Impressions', 'Reach', 'Website Clicks', 'Searches', 'View Content', 'Add to Cart', 'Purchase'
-include_vars <- c('Spend (USD)', 'Impressions', 'Reach', 'Website Clicks', 'Searches', 'View Content', 'Add to Cart', 'Purchase')
+include_vars <- c('Impressions', 'Reach', 'Website Clicks', 'Searches', 'View Content', 'Add to Cart', 'Purchase')
 
 # Run Function
 plot_conversion_rate(conversion_rate, include_vars)
 
+############
+conversion_rate
+conversion_rate %>%
+  group_by(variable) %>%
+  mutate(delta = ratio[group == "average_bidding"] -
+  ratio[group == "maximum_bidding"]) %>%
+  select(variable,delta) %>%
+  mutate(winner = ifelse(delta >= 0, 
+                         "average_bidding",
+                         "maximum_bidding")) 
+  select(variable,winner)
+
+######### could this be useful
+  
+conversion_rate                                       %>%
+  group_by(variable)                                  %>%
+  mutate(delta = ratio[group == "average_bidding"] -
+                 ratio[group == "maximum_bidding"])   %>%
+  select(variable, delta)                             %>%
+  mutate(winner = ifelse(delta >= 0,
+                         "average_bidding",
+                         "maximum_bidding"))          %>%
+  filter(variable != "Spend (USD)")                   %>%
+  distinct(variable,delta,winner)                     %>%
+  arrange(variable %in% include_vars)
+  
+  
+
 ```
 
-***X is Cost/Purchase, Y is Purchase 
+```{r}
+
+'Impression-to-click rate: This measures the percentage of people who see an ad and then click on it.'
+
+combined_data %>%
+  group_by(group) %>%
+  summarise(CMP = sum(value[variable == "Website Clicks"]) / 
+              (sum(value[variable == "Impressions"]))) 
+unique(combined_data$variable)
+
+'Click-through rate (CTR): This measures the percentage of people who click on an ad after seeing it.'
+
+# CTR DatFrame
+ctr = combined_data %>%
+  group_by(group) %>%
+  summarise(Website_Clicks = 
+              sum(value[variable == "Website Clicks"]),
+            Impressions = 
+              sum(value[variable == "Impressions"]))   %>%
+  mutate(CTR = Website_Clicks/Impressions * 100)
+
+# Plotting CTR
+ggplot(ctr, aes(x = group, y = CTR, fill = group)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Bidding Group", y = "Click-Through Rate (CTR)") +
+  theme_classic()
+
+'Conversion rate: This measures the percentage of people who take a desired action, such as making a purchase, after clicking on an ad.'
+
+# Add to Cart
+conversion_rate_atc <- combined_data %>%
+  group_by(group, variable) %>%
+  summarise(sum = sum(value)) %>%
+  mutate(conversion_rate = ifelse(variable != "Add to Cart",
+                        sum(sum[variable == "Add to Cart"])/sum,
+                        NA)*100) %>%
+  filter(variable != "Add to Cart")
+
+conversion_rate_atc
+
+'Add-to-cart rate: This measures the percentage of people who add a product to their cart after viewing it.'
+
+# Clicks to Add to Cart
+
+combined_data %>%
+  group_by(group) %>%
+  summarise(add_to_cart_rate = sum(value[variable == "Add to Cart"]) / 
+              sum(value[variable == "Website Clicks"])) %>%
+  mutate(add_to_cart_rate = add_to_cart_rate * 100)
+
+# Views to Add to Cart
+combined_data %>%
+  group_by(group) %>%
+  summarise(add_to_cart_rate = sum(value[variable == "Add to Cart"]) / 
+              sum(value[variable == "View Content"])) %>%
+  mutate(add_to_cart_rate = add_to_cart_rate * 100)
+
+unique(combined_data$variable)
+
+'Purchase rate: This measures the percentage of people who make a purchase after adding a product to their cart.'
+
+combined_data %>%
+  group_by(group) %>%
+  summarise(add_to_cart_rate = sum(value[variable == "Purchase"]) / 
+              sum(value[variable == "Add to Cart"])) %>%
+  mutate('Purchase Rate' = add_to_cart_rate * 100)
+
+'Cost per impression (CPM): This measures the cost of displaying an ad to 1,000 people.'
+
+combined_data %>%
+  group_by(group) %>%
+  summarise(CMP = sum(value[variable == "Spend (USD)"]) / 
+              (sum(value[variable == "Impressions"]) / 1000)) 
+
+'Cost per click (CPC): This measures the cost of getting one click on an ad.'
+
+combined_data %>%
+  group_by(group) %>%
+  summarise(CPC = sum(value[variable == "Spend (USD)"]) / 
+              sum(value[variable == "Website Clicks"]))
+
+'Cost per action (CPA): This measures the cost of getting one desired action, such as a purchase, from an ad.'
+# DONE
+
+```
+
+
+***X is Cost/Purchase, Y is Purchase***
 
 ```{r, Density Plot DataFrame and Plotting for Spend vs. Purchase}
 
@@ -507,11 +704,47 @@ chi-square test of independence: This test can be used to determine if there is 
 ```
 
 
+```{r, Checking for normal distribution}
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(scales)
+
+'Checking for normality of variables in an A/B test can help determine the assumptions made by certain statistical tests. Some statistical tests, such as t-tests and ANOVA, assume that the data is normally distributed. If the data is not normally distributed, then the results of these tests may not be accurate. By checking for normality, you can ensure that the assumptions made by these tests are satisfied and that the results are reliable. Additionally, checking for normality can also help you identify any outliers or skewness in the data, wh`ich may affect your interpretation of the results'
+
+# Plot Mean per Variable
+combined_data %>%
+  group_by(group, variable) %>%
+  summarize(mean = mean(value), sd = sd(value), n = n(), 
+            normality = ifelse(shapiro.test(value)$p.value > 0.05, "Normal", "Not Normal")) %>%
+  mutate(variable = as.factor(variable)) %>%
+  ggplot(aes(x = variable, y = mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd, ymax = mean + sd), width = 0.3) +
+  facet_wrap(~ group) +
+  labs(x = "Variable", y = "Mean") +
+  theme_classic() +
+  coord_flip()
+
+# DataFrame for Normality
+combined_data %>%
+  group_by(group, variable) %>%
+  summarize(mean = mean(value), sd = sd(value), n = n(),
+            normality = ifelse(shapiro.test(value)$p.value > 0.05,
+                               "Normal", "Not Normal")) %>%
+  mutate(variable = as.factor(variable)) %>%
+  select(group, variable,normality) %>%
+  arrange(normality)
+```
+
+
 ***Update this code to adjust filters for various ratios***
 # Cost per Conversion: Spend / Select Variable
 # Conversion Rate: Variable (purchase or add to cart) / Spend, Clicks, Impressions, Etc
 
-```{r, permutation test}
+```{r, permutation test/randomization test}
+
+'A permutation test allows us to determine if the difference in outcome between the two groups is due to chance or if it is statistically significant.'
 
 # filter data for Spend to Purchase Ratio ** Is this the correct term**
 
@@ -564,8 +797,6 @@ if (p_value < 0.05) {
 ```
 
 ```{r, two-sample t-test: test the difference between the means of two groups}
-
-library(tidyverse)
 
 # Filter the data for Spend to Purchase Ratio
 t_test_filter <-
@@ -679,11 +910,10 @@ delta = combined_data %>%
 delta = delta$delta
 
 # Parameters for the power analysis
-n1 = NULL # sample size of group 1 (control)
-n2 = 29   # sample size of group 2 (test)
+n1 = 10 # sample size of group 1 (control)
 delta = delta    # effect size, difference in means between the two groups
 alpha = 0.05     # significance level
-power = 0.95     # desired power (probability of correctly detecting a difference between two groups)
+power = NULL    # desired power (probability of correctly detecting a difference between two groups)
 
 # Perform the power analysis
 result <- pwr.t.test(n = n1, d = delta, sig.level = alpha, power = power, type = "two.sample", alternative = "two.sided")
