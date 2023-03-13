@@ -90,12 +90,6 @@ average_bidding %>%
 
 ```
 
-```{r, Outliers}
-
-colnames(average_bidding)
-
-```
-
 
 ```{r, Merging Data}
 
@@ -148,9 +142,6 @@ combined_data %>%
 ```
 
 
-
-***Show The Varaible Counts***
-
 ```{r, Select Date and Variable}
 
 compare_bidding_by_day_and_variable <- function(date, variable, average_bidding, maximum_bidding) {
@@ -201,21 +192,49 @@ compare_bidding_by_day_and_variable(date, variable, average_bidding, maximum_bid
 
 ```{r, Monthly: Select Variable to Compare}
 
+# Spend (USD) Impressions Reach Website Clicks Searches View Content Add to Cart Purchase 
+
+# Bar Plot
+
+variable = 'Spend (USD)'
+plot_variable(variable, average_bidding, maximum_bidding)
+
 plot_variable <- function(variable, average_bidding, maximum_bidding) {
   ggplot(data = average_bidding) + 
-    geom_col(aes(x = Date, y = as.numeric(average_bidding[,variable]), color = "Average Bidding")) +
-    geom_col(data = maximum_bidding, aes(x = Date, y = as.numeric(maximum_bidding[,variable]), color = "Maximum Bidding")) +
+    geom_col(aes(x = Date, 
+                 y = as.numeric(average_bidding[,variable]), 
+                 color = "Average Bidding")) +
+    geom_col(data = maximum_bidding, 
+             aes(x = Date, 
+                 y = as.numeric(maximum_bidding[,variable]), 
+                 color = "Maximum Bidding")) +
     ggtitle(paste0(variable, " Over Time")) + 
     xlab("Date") + 
     ylab(variable) +
     theme(plot.title = element_text(hjust = 0.5))
 }
 
-# Example usage:
+
+
+# Line Plot
+
 variable = 'Spend (USD)'
-# Spend (USD) Impressions Reach Website Clicks Searches View Content Add to Cart Purchase 
 plot_variable(variable, average_bidding, maximum_bidding)
 
+plot_variable <- function(variable, average_bidding, maximum_bidding) {
+  ggplot(data = average_bidding) +
+  geom_line(aes(x = Date, 
+                y = as.numeric(average_bidding[,variable]), 
+                color = "Average Bidding")) +
+  geom_line(data = maximum_bidding, 
+            aes(x = Date,
+                y = as.numeric(maximum_bidding[,variable]),
+                color = "Maximum Bidding")) +
+  ggtitle(paste0(variable, " Over Time")) +
+  xlab("Date") +
+  ylab(variable) +
+  theme(plot.title = element_text(hjust = 0.5))
+  }
 
 ```
 
@@ -291,9 +310,9 @@ ggplot(combined_data, aes(x = Date, y = value, fill = group)) +
 
 combined_data
 ```
-***Balance Days of Week***
 
-```{r, Balance for Day of Week}
+
+```{r, ***Averages for Day of Week}
 
 combined_data
 
@@ -345,12 +364,16 @@ unique(combined_data$variable)
 
 ```{r, Plot Performance by Day of Week}
 
+arrange(order)
+order
+order = c(unique(combined_data$Weekday))
+
 # Variable By Day of The Week
 
 combined_data %>% 
-  group_by(Weekday, variable) %>% 
-  summarise(sum_of_values = sum(value)) %>% 
-  ggplot(aes(x = Weekday, y = sum_of_values, fill = variable)) + 
+  group_by(group, Weekday, variable) %>% 
+  summarise(mean_of_values = mean(value)) %>% 
+  ggplot(aes(x = Weekday, y = mean_of_values, fill = group)) + 
   geom_col() + 
   labs(x = "Day of the week", y = "Sum of values") + 
   ggtitle("Sum of values by day of the week and variable") + 
@@ -412,7 +435,7 @@ average_bidding %>%
 ```
 
 
-```{r, Dataframes and Plotting for Monthly Sum of Spend and Conversions}
+```{r, Dataframes and Plotting for Monthly Sum}
 
 ####################### Conversion Sums
 
@@ -458,6 +481,73 @@ plot_sum_by_variable(monthly_data, include_vars)
 # Needed less impressions, clicks, and add-to-carts to get to a purchase with Maximum Bidding
 # Why was the spend higher, impressions and reach lower, Clicks, Searches Lower, with better Add-to-cart to Purchase Ratios?
 
+```
+
+```{r, funnel}
+
+library('devtools')
+library('ropensci/plotly')
+library('plotly')
+
+# Filter data for each group
+group1_data <- combined_data %>%
+  filter(group == "average_bidding")
+
+group2_data <- combined_data %>%
+  filter(group == "maximum_bidding")
+
+# Create a function to generate funnel plot data
+create_funnel_data <- function(data) {
+  # Calculate the percentage of each variable compared to the previous variable
+  funnel_data <- data %>%
+    group_by(variable) %>%
+    summarize(sum = sum(value)) %>%
+    mutate(percent = cumsum(sum) / sum(sum))
+
+  # Reverse the order of the data to match the desired funnel order
+  funnel_data <- funnel_data[nrow(funnel_data):1,]
+
+  return(funnel_data)
+}
+
+# Generate funnel plot data for each group
+group1_funnel_data <- create_funnel_data(group1_data)
+group2_funnel_data <- create_funnel_data(group2_data)
+
+# Create the funnel plots
+group1_funnel_plot <- plot_ly(
+  type = "funnelarea",
+  values = group1_funnel_data$percent,
+  text = rev(group1_funnel_data$variable),
+  marker = list(colors = c("deepskyblue", "lightsalmon", "tan", "teal", "silver"),
+                line = list(color = c("wheat", "wheat", "blue", "wheat", "wheat"), width = c(0, 1, 5, 0, 4))),
+  textfont = list(family = "Old Standard TT, serif", size = 13, color = "black"),
+  opacity = 0.65,
+  name = "Average Bidding"
+)
+
+group2_funnel_plot <- plot_ly(
+  type = "funnelarea",
+  values = group2_funnel_data$sum,
+  text = rev(group2_funnel_data$variable),
+  marker = list(colors = c("deepskyblue", "lightsalmon", "tan", "teal", "silver"),
+                line = list(color = c("wheat", "wheat", "blue", "wheat", "wheat"), width = c(0, 1, 5, 0, 4))),
+  textfont = list(family = "Old Standard TT, serif", size = 13, color = "black"),
+  opacity = 0.65,
+  name = "Maximum Bidding"
+)
+
+# Display the funnel plots
+group1_funnel_plot
+group2_funnel_plot
+
+group2_funnel_data = 
+  group2_funnel_data %>%
+  arrange(desc(sum))
+
+group2_funnel_data %>%
+  mutate(percent = sum/sum[1] * 100) %>%
+  filter(variable != "Spend (USD)")
 ```
 
 ```{r, Conversion Cost}
@@ -795,6 +885,7 @@ if (p_value < 0.05) {
 }
 
 ```
+
 
 ```{r, two-sample t-test: test the difference between the means of two groups}
 
