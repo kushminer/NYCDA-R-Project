@@ -14,7 +14,7 @@ server <- function(input, output) {
       return(NULL)
     }
     include_vars <- input$variables
-    plot_sum_by_variable(monthly_data, include_vars)
+    plot_sum_by_variable(include_vars)
   })
   
   # Analysis
@@ -26,55 +26,87 @@ server <- function(input, output) {
     plot_winners(include_vars)
   })
   
-  # ------------ Cost Plots
+  # ------------ Cost
   
+  # Plots
   output$costs_plot <- renderPlot({
     if (length(input$costs) == 0) {
       return(NULL)
     }
     include_cost_vars <- input$costs
-    plot_cost_by_variable(cost_data, include_cost_vars)
+    plot_cost_by_variable(include_cost_vars)
   })
   
-
-  # ------------- Funnel Plots
-  
-  output$funnel_selector <- renderUI({
-    selectInput("funnel_plot", "Select Funnel Type", choices = c("Count", "Retention", "Cost", "Impressions"))
-  })
-  
-  output$retention_funnel_plot <- renderPlot({
-    if ("Retention" %in% input$funnel_type) {
-      retention_funnel_plot
-    } else {
+  # Analysis
+  output$cost_analysis_plot <- renderPlot({
+    if (length(input$costs) == 0) {
       return(NULL)
     }
+    include_cost_vars <- input$costs
+    plot_cost_winners(include_cost_vars)
   })
   
-  output$impressions_funnel_plot <- renderPlot({
-    if ("Impressions" %in% input$funnel_type) {
-      impressions_funnel_plot
-    } else {
+  # ------------ Conversion 
+  
+  # Plots
+  output$conversions_plot <- renderPlot({
+    if (length(input$conversions) == 0) {
       return(NULL)
     }
+    include_conversion_vars <- input$conversions
+    plot_conversion_funnel(include_conversion_vars)
   })
   
-  output$cost_funnel_plot <- renderPlot({
-    if ("Cost" %in% input$funnel_type) {
-      cost_funnel_plot
-    } else {
+  # Analysis
+  output$conversion_analysis_plot <- renderPlot({
+    if (length(input$conversions) == 0) {
       return(NULL)
     }
+    include_conversion_vars <- input$conversions
+    plot_conversion_winners(include_conversion_vars)
   })
   
-  output$count_funnel_plot <- renderPlot({
-    if ("Count" %in% input$funnel_type) {
-      count_funnel_plot
-    } else {
+  # ------------ Retention 
+  
+  # Plots
+  output$retention_rate_plot <- renderPlot({
+    if (length(input$retention_rate) == 0) {
       return(NULL)
     }
+    include_retention_vars <- input$retention_rate
+    plot_retention_funnel(include_retention_vars)
   })
   
+  # Analysis
+  output$retention_rate_analysis_plot <- renderPlot({
+    if (length(input$retention_rate) == 0) {
+      return(NULL)
+    }
+    include_retention_vars <- input$retention_rate
+    plot_retention_winners(include_retention_vars)
+  })
+  
+  # ------------ Purchase 
+  
+  # Plots
+  output$purchase_rate_plot <- renderPlot({
+    if (length(input$purchase_rate) == 0) {
+      return(NULL)
+    }
+    include_purchase_vars <- input$purchase_rate
+    plot_purchase_funnel(include_purchase_vars)
+  })
+  
+  # Analysis
+  output$purchase_rate_analysis_plot <- renderPlot({
+   if (length(input$purchase_rate) == 0) {
+    return(NULL)
+  }
+  include_retention_vars <- input$purchase_rate
+  plot_purchase_winners(include_purchase_vars)
+  })
+  
+    
 }
 
 shiny::shinyApp(ui = ui, server = server)
