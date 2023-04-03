@@ -1,0 +1,31 @@
+
+
+```{text}
+
+Bootstrapping is a powerful resampling technique that allows you to estimate the sampling distribution of a statistic when the underlying distribution is unknown or difficult to work with. Here, we'll discuss the strengths and weaknesses of bootstrapping using the sum of the data for the period (sum-based bootstrapping) versus using the original values per day for the 30-day period (daily-based bootstrapping).
+
+Sum-based bootstrapping:
+Strengths:
+
+Simplifies the data: By using the sum of the data for the period, you reduce the complexity of the dataset, which can simplify the analysis and make the bootstrapping procedure faster.
+Weaknesses:
+
+Loss of information: By using the sum of the data, you may lose important information related to the variability in the daily data, which could affect the accuracy of the statistical inference.
+Assumes independence and identical distribution: The sum-based approach assumes that the daily data points are independent and identically distributed, which may not be true in some cases.
+Reduced statistical power: The sum-based bootstrapping approach may have reduced statistical power compared to a parametric test or daily-based bootstrapping.
+Daily-based bootstrapping:
+Strengths:
+
+Retains more information: By using the original daily values, you preserve the variability in the daily data, which may lead to more accurate statistical inference.
+Better representation of the data: Daily-based bootstrapping takes into account the daily fluctuations in the data, which can better represent the underlying process generating the data.
+Higher statistical power: Daily-based bootstrapping may have higher statistical power compared to the sum-based approach.
+Weaknesses:
+
+More complex: Daily-based bootstrapping is more complex, as it works with a larger dataset (30 data points for each variation), which can make the analysis more computationally intensive and slower.
+Assumes independence and identical distribution: Similar to the sum-based approach, daily-based bootstrapping also assumes that the daily data points are independent and identically distributed, which may not hold true in some cases.
+In summary, daily-based bootstrapping is generally more powerful and accurate than sum-based bootstrapping, as it retains more information about the variability in the data. However, daily-based bootstrapping can be more complex and computationally intensive. Both approaches assume that the data points are independent and identically distributed, which may not always hold true. It's important to consider the assumptions, strengths, and weaknesses of each approach when deciding which one to use for your specific problem.
+
+
+
+```
+

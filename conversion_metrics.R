@@ -254,9 +254,6 @@ all_wilcox_results_conversions
 
 ###########################################################################
 
-
-# ----------------- > CONVERSION METRICS WIN PROBABILITY
-
 calculate_average_win_probability <- function(variable_pairs) {
   results <- data.frame()
   
@@ -296,7 +293,7 @@ calculate_average_win_probability <- function(variable_pairs) {
       })
     
     average_win_probability_A <- mean(win_probability_daily$win_prob_average_bidding, na.rm = TRUE)
-    results <- rbind(results, data.frame(KPI = paste(pair[1], pair[2], sep = "_"), win_prob_average_bidding = average_win_probability_A))
+    results <- rbind(results, data.frame(CM = paste(pair[1], pair[2], sep = "_"), win_prob_average_bidding = average_win_probability_A))
   }
   
   return(results)
