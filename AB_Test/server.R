@@ -1,112 +1,90 @@
 
 library(shiny)
 library(ggplot2)
-source("visualizations.R")
+library(plotly)
+source("cost_metrics.R")
+source("key_metrics.R")
+source("conversion_metrics.R")
 
 # Define server
 server <- function(input, output) {
   
-  # ------------ Total
+  # ------------ CONVERSION METRICS
   
-  # Plots
-  output$totals_plot <- renderPlot({
-    if (length(input$variables) == 0) {
+  # Daily Conversion Metrics Plot
+  output$daily_conversion_metrics_plot <- renderPlotly({
+    if (length(input$conversion_metric) == 0) {
       return(NULL)
     }
-    include_vars <- input$variables
-    plot_sum_by_variable(include_vars)
+    selected_var <- input$conversion_metric
+    plot_conversion_metrics_daily(conversion_rate_per_var, selected_var)
   })
   
-  # Analysis
-  output$totals_analysis_plot <- renderPlot({
-    if (length(input$variables) == 0) {
+  # Cumulative Conversion Metrics Plot
+  output$cumulative_conversion_metrics <- renderPlot({
+    if (length(input$conversion_metric) == 0) {
       return(NULL)
     }
-    include_vars <- input$variables
-    plot_winners(include_vars)
+    daily_kpis <- input$conversion_metric
+    plot_cumulative_conversion_metrics(combined_data, daily_kpis)
   })
   
-  # ------------ Cost
+  # Conversion Metrics DataFrame
+  output$conversion_metrics_table <- renderTable({
+    conversion_rate_dataframe
+  }, rownames = FALSE)
   
-  # Plots
-  output$costs_plot <- renderPlot({
-    if (length(input$costs) == 0) {
+  # ------------ KEY METRICS
+  
+  # Daily Key Metrics Plot
+  output$daily_key_metrics_plot <- renderPlotly({
+    if (length(input$raw_metric) == 0) {
       return(NULL)
     }
-    include_cost_vars <- input$costs
-    plot_cost_by_variable(include_cost_vars)
+    include_daily_vars <- input$raw_metric
+    plot_key_metrics_daily(combined_data, include_daily_vars)
   })
   
-  # Analysis
-  output$cost_analysis_plot <- renderPlot({
-    if (length(input$costs) == 0) {
+  # Cumulative Key Metrics Plot
+  output$cumulative_key_metrics_plot <- renderPlot({
+    if (length(input$raw_metric) == 0) {
       return(NULL)
     }
-    include_cost_vars <- input$costs
-    plot_cost_winners(include_cost_vars)
+    include_daily_vars <- input$raw_metric
+    plot_cumulative_key_metrics(combined_data, include_daily_vars)
   })
   
-  # ------------ Conversion 
+  # Key Metrics DataFrame
+  output$key_metrics_table <- renderTable({
+    key_metrics
+  }, rownames = FALSE)
   
-  # Plots
-  output$conversions_plot <- renderPlot({
-    if (length(input$conversions) == 0) {
+  # ------------ COST METRICS
+  
+  # Daily Cost Metrics Plot
+  output$daily_cost_metrics_plot <- renderPlotly({
+    if (length(input$cost_metric) == 0) {
       return(NULL)
     }
-    include_conversion_vars <- input$conversions
-    plot_conversion_funnel(include_conversion_vars)
+    selected_cost_metric <- input$cost_metric
+    daily_cost_metrics_plot(daily_cost_metrics, selected_cost_metric)
   })
   
-  # Analysis
-  output$conversion_analysis_plot <- renderPlot({
-    if (length(input$conversions) == 0) {
+  # Cumulative Cost Metrics Plot
+  output$cumulative_cost_plot <- renderPlot({
+    if (length(input$cost_metric) == 0) {
       return(NULL)
     }
-    include_conversion_vars <- input$conversions
-    plot_conversion_winners(include_conversion_vars)
+    selected_cost_metric <- input$cost_metric
+    plot_cumulative_cost_metrics(cumulative_cost_metrics,selected_cost_metric)
   })
   
-  # ------------ Retention 
+  # Cost Metrics DataFrame
+  output$cost_metrics_table <- renderTable({
+    wide_total_cost_metrics
+  }, rownames = FALSE)
   
-  # Plots
-  output$retention_rate_plot <- renderPlot({
-    if (length(input$retention_rate) == 0) {
-      return(NULL)
-    }
-    include_retention_vars <- input$retention_rate
-    plot_retention_funnel(include_retention_vars)
-  })
   
-  # Analysis
-  output$retention_rate_analysis_plot <- renderPlot({
-    if (length(input$retention_rate) == 0) {
-      return(NULL)
-    }
-    include_retention_vars <- input$retention_rate
-    plot_retention_winners(include_retention_vars)
-  })
-  
-  # ------------ Purchase 
-  
-  # Plots
-  output$purchase_rate_plot <- renderPlot({
-    if (length(input$purchase_rate) == 0) {
-      return(NULL)
-    }
-    include_purchase_vars <- input$purchase_rate
-    plot_purchase_funnel(include_purchase_vars)
-  })
-  
-  # Analysis
-  output$purchase_rate_analysis_plot <- renderPlot({
-   if (length(input$purchase_rate) == 0) {
-    return(NULL)
-  }
-  include_retention_vars <- input$purchase_rate
-  plot_purchase_winners(include_purchase_vars)
-  })
-  
-    
 }
 
 shiny::shinyApp(ui = ui, server = server)
