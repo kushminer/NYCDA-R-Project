@@ -18,7 +18,7 @@ conversion_rate_per_var <- combined_data %>%
   select(Date,group,Reach,`Website Clicks`,`Purchase`,CTR_R,PR_R,PR_ATC)
 
 # conversion rate derived from total
-conversion_rate_total <- combined_data %>%
+cumulative_conversion_rate <- combined_data %>%
   group_by(group, variable) %>%
   summarise(sum = sum(value)) %>%
   spread(variable, sum) %>%
@@ -27,17 +27,7 @@ conversion_rate_total <- combined_data %>%
          PR_ATC =  (Purchase        / `Add to Cart`)) %>%
   select(group, CTR_R,PR_R,PR_ATC)
 
-# Cumulative Conversion Rate
-combined_data %>%
-  group_by(group, variable) %>%
-  summarise(sum = sum(value)) %>%
-  spread(variable, sum) %>%
-  mutate(CTR_R  = `Website Clicks` / Impressions,
-         PR_R   =  Purchase        / Impressions,
-         PR_ATC =  Purchase        / `Add to Cart`) %>%
-  select(group, CTR_R,PR_R,PR_ATC)
-
-# conversersion rate daily mean
+# conversion rate daily mean (unused in shiny app)
 combined_data %>%
   spread(variable, value) %>%
   mutate(CTR_R  = `Website Clicks` / Reach,
@@ -315,14 +305,14 @@ conversion_win_prob
 
 ###########################################################################
 
-# Reshape conversion_rate_total to long format
-long_conversion_rate_total <- conversion_rate_total %>%
+# Reshape cumulative_conversion_rate to long format
+long_cumulative_conversion_rate <- cumulative_conversion_rate %>%
   ungroup() %>%
   pivot_longer(cols = -group, names_to = "variable", values_to = "value")
 
-# Join all_wilcox_results_conversions with long_conversion_rate_total
+# Join all_wilcox_results_conversions with long_cumulative_conversion_rate
 conversion_rate_dataframe <- all_wilcox_results_conversions %>%
-  left_join(long_conversion_rate_total, by = "variable") %>%
+  left_join(long_cumulative_conversion_rate, by = "variable") %>%
   pivot_wider(names_from = group, values_from = value)
 
 

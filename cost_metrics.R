@@ -24,11 +24,11 @@ daily_cost_metrics <- combined_data %>%
 cost_per_var_mean <- daily_cost_metrics %>%
   group_by(group) %>%
   summarise(mean_CPI = mean(CPI),
-            mean_Spend = mean(CPI),
-            mean_CPP = mean(CPI),
-            mean_CPC = mean(CPI))
+            mean_Spend = mean(Spend),
+            mean_CPP = mean(CPP),
+            mean_CPC = mean(CPC))
 
-# Accumulated Cost Metrics
+# Cumulative Cost Metrics
 cumulative_cost_metrics <- combined_data %>%
   group_by(group, variable) %>%
   summarise(sum = sum(value)) %>%
@@ -147,7 +147,7 @@ plot_cumulative_cost_metrics(cumulative_cost_metrics,selected_cost_metric)
 
 ###########################################################################
 
-# COST METRICS WILCOX TEST #
+# COST METRICS WILCOXON TEST #
 
 ###########################################################################
 
@@ -203,11 +203,10 @@ wilcox_test_CPP <- function(data) {
 }
 
 # Combine the results
-
 # Run each Wilcoxon test and create a dataframe with results
-cpi_results <- wilcox_test_CPI(cost_per_var) %>% mutate(variable = "CPI")
-cpc_results <- wilcox_test_CPC(cost_per_var) %>% mutate(variable = "CPC")
-cpp_results <- wilcox_test_CPP(cost_per_var) %>% mutate(variable = "CPP")
+cpi_results <- wilcox_test_CPI(daily_cost_metrics) %>% mutate(variable = "CPI")
+cpc_results <- wilcox_test_CPC(daily_cost_metrics) %>% mutate(variable = "CPC")
+cpp_results <- wilcox_test_CPP(daily_cost_metrics) %>% mutate(variable = "CPP")
 
 
 # Combine the results into a single dataframe
@@ -300,7 +299,8 @@ cost_variable_pairs <- list(
   c("Spend (USD)","Impressions"),
   c("Spend (USD)","Website Clicks"),
   c("Spend (USD)","Purchase"),
-  c("Purchase","Spend (USD)"))
+  c("Spend (USD)", "Spend (USD)")
+  )
 
 # Save results in a DataFrame
 cost_win_probability <- calculate_cost_win_probability(cost_variable_pairs)
@@ -313,11 +313,11 @@ cost_win_probability
 ###########################################################################
 
 # Update row names in cost_win_probability
-cost_win_probability$KPI <- c("CPI", "CPC", "Spend", "CPP")
+cost_win_probability$CPV <- c("CPI", "CPC","CPP","Spend")
 
 # adjust column names in cost_win_probability
 cost_win_probability <- cost_win_probability %>%
-  rename("variable" = KPI)
+  rename("variable" = CPV)
 
 # Reshape wide_total_cost_metrics to wide format
 wide_total_cost_metrics <- cumulative_cost_metrics %>%
@@ -331,10 +331,6 @@ wide_total_cost_metrics <- wide_total_cost_metrics %>%
 # Calculate Lift
 wide_total_cost_metrics <- wide_total_cost_metrics %>%
   mutate(Lift = (`Average Bidding` - `Maximum Bidding`) / `Maximum Bidding`)
-
-# Simplify Dataframe
-wide_total_cost_metrics <- wide_total_cost_metrics %>%
-  select(variable, "Average Bidding","Maximum Bidding",Lift, p_value)
 
 # Merge wide_total_cost_metrics with cost_win_probability
 wide_total_cost_metrics<- merge(wide_total_cost_metrics, cost_win_probability, by = "variable")
@@ -351,14 +347,13 @@ wide_total_cost_metrics$`Cost Metric` <- recode(wide_total_cost_metrics$`Cost Me
                                              "CPP" = "Cost per Purchase",
                                              "CPI" = "Cost per Impression")
 
-
-# Adjust the formate
+# Cost_per_var_mean data prep
 cost_per_var_mean <- cost_per_var_mean %>%
   pivot_longer(cols = -group, names_to = "variable", values_to = "value") %>%
   pivot_wider(names_from = group, values_from = value) %>%
   mutate(Lift = (`Average Bidding` - `Maximum Bidding`) / `Maximum Bidding`)
 
-# Change col names
+# Cost_per_var_mean change col names
 cost_per_var_mean <- cost_per_var_mean %>%
   rename("Average Bidding Mean" = `Average Bidding`,
          "Maximum Bidding Mean" = `Maximum Bidding`,
@@ -366,7 +361,7 @@ cost_per_var_mean <- cost_per_var_mean %>%
          "Cost Metric" = variable
          ) 
 
-# Change Var Names
+# Cost_per_var_mean change Var Names
 cost_per_var_mean$`Cost Metric` <-   recode(cost_per_var_mean$`Cost Metric`,
          "mean_Spend" = "Spend",
          "mean_CPC" = "Cost per Click",

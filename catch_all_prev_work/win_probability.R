@@ -31,48 +31,69 @@ group_probs
 #####################################################################################################################################
 
 # Calculating the win probability of a Maximum Bidding campaign compared to an Average Bidding campaign
+# Based on the total values for the period
 
 #####################################################################################################################################
 
-# extract the number of Website Clicks and Impressions for each group:
-clicks_impressions <- combined_data %>%
-  filter(variable %in% c("Website Clicks", "Impressions")) %>%
-  group_by(group, variable) %>%
-  summarize(sum = sum(value))
+calculate_single_win_probability <- function(combined_data, variable_pairs) {
+  results <- data.frame()
+  
+  for (variable_pair in variable_pairs) {
+    # Extract the number of metric values for each group
+    metric_values <- combined_data %>%
+      filter(variable %in% variable_pair) %>%
+      group_by(group, variable) %>%
+      summarize(sum = sum(value))
+    
+    # Extract the number of successes and trials for each group
+    successes_A <- metric_values %>%
+      filter(group == "Average Bidding", variable == variable_pair[1]) %>%
+      pull(sum)
+    
+    trials_A <- metric_values %>%
+      filter(group == "Average Bidding", variable == variable_pair[2]) %>%
+      pull(sum)
+    
+    successes_B <- metric_values %>%
+      filter(group == "Maximum Bidding", variable == variable_pair[1]) %>%
+      pull(sum)
+    
+    trials_B <- metric_values %>%
+      filter(group == "Maximum Bidding", variable == variable_pair[2]) %>%
+      pull(sum)
+    
+    # Set the number of samples
+    n_samples <- 10000
+    
+    # Generate samples from the Beta distribution for each group / Monte Carlo Simulation
+    samples_A <- rbeta(n_samples, shape1 = successes_A + 1, shape2 = trials_A - successes_A + 1)
+    samples_B <- rbeta(n_samples, shape1 = successes_B + 1, shape2 = trials_B - successes_B + 1)
+    
+    # Calculate the win probability for Maximum Bidding
+    win_probability_B <- mean(samples_B > samples_A)
+    
+    # Append the win probability to the results data frame
+    results <- rbind(results, data.frame(metric = paste(variable_pair, collapse = " / "), win_probability_B = paste0(win_probability_B*100,'%')))
+  }
+  
+  # Return the results data frame
+  return(results)
+}
 
-#extract the number of successes (Website Clicks) and trials (Impressions) for each group:
-successes_A <- clicks_impressions %>%
-  filter(group == "Average Bidding", variable == "Website Clicks") %>%
-  pull(sum)
 
-trials_A <- clicks_impressions %>%
-  filter(group == "Average Bidding", variable == "Impressions") %>%
-  pull(sum)
+variable_pairs <- list(
+  c("Website Clicks", "Impressions")
+  #c("Purchase", "Impressions"),
+  #c("Purchase", "Add to Cart")
+)
 
-successes_B <- clicks_impressions %>%
-  filter(group == "Maximum Bidding", variable == "Website Clicks") %>%
-  pull(sum)
+win_probabilities <- calculate_single_win_probability(combined_data, variable_pairs)
+print(win_probabilities)
 
-trials_B <- clicks_impressions %>%
-  filter(group == "Maximum Bidding", variable == "Impressions") %>%
-  pull(sum)
-
-# Set the number of samples
-n_samples <- 1000000
-
-# Generate samples from the Beta distribution for each group / Monte Carlo Simulation
-samples_A <- rbeta(n_samples, shape1 = successes_A + 1, shape2 = trials_A - successes_A + 1)
-samples_B <- rbeta(n_samples, shape1 = successes_B + 1, shape2 = trials_B - successes_B + 1)
-
-# Calculate the win probability for Maximum Bidding
-win_probability_B <- mean(samples_B > samples_A)
-
-# Display the win probability
-cat("Win probability for Maximum Bidding:", paste0(win_probability_B*100,"%"), "\n")
 
 #####################################################################################################################################
 
-# Check Normalized Metrics for Normalization (USUSED BECAUSE KEY METRICS (RAW METRICS) ALREADY CHECKS)
+# Check Normalized Metrics for Normalization (UNUSED BECAUSE KEY METRICS (RAW METRICS) ALREADY CHECKS)
 
 #####################################################################################################################################
 

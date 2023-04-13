@@ -1,4 +1,5 @@
 
+library(plotly)
 library(shiny)
 library(shinydashboard)
 
@@ -49,7 +50,7 @@ ui <- dashboardPage(
                     "
                       )
                  )
-            ),
+    ),
     tabItems(
       # Test Introductions Tab
       tabItem(tabName = "test_introduction",
@@ -84,119 +85,131 @@ ui <- dashboardPage(
               p("We considered other options, such as imputing the missing data or using a different time period for the analysis, but decided that removing the data was the most balanced option."),
               p("Removing a line of data from 30 rows may seem drastic, but it ensures that the comparison between the two bidding strategies is based on the same time period and does not introduce bias into the analysis."),
               p("We acknowledge that this decision may have some impact on the accuracy of the results, but we believe that it was the most reasonable choice given the circumstances."),
+              h4("Hypothesis Tests"),
+              p("To assess whether the values of two groups were significantly different, I conducted a hypothesis test."),
+              p("To determine the appropriate hypothesis test, I examined the raw data's normality using various visualizations (e.g., Histogram, Box Plot, QQ Plot, and Density Plot) and statistical analyses"),
+              p("Based on the visualizations, only one key metric (Website Clicks) appeared to be potentially normally distributed. To confirm this, I performed the Shapiro-Wilk and Anderson-Darling statistical tests."),
+              p("Therefore, I chose to use the non-parametric Wilcoxon Rank Sum Test for the remainder of the hypothesis analysis."),
+              p("The Wilcoxon Rank Sum Test was used for the remainder of hypothesis analysis"),
+              p("Overall, my approach allowed me to make informed decisions about the appropriate hypothesis test and confidently analyze the data."),
+              p("The analysis can be found in normality_check.R"),
+              h4("Win Probability"),
+              p("I utilized Win Probability analysis to evaluate the likelihood of success for various conversion and cost metrics such as Clickthrough Rate and Cost per Purchase"),
+              p("Win Probability takes into account factors such as historical performance and uses a Monte Carlo simulation to analyze multiple scenarios and determine the likelihood of achieving success in the future."),
+              p("Through the Monte Carlo simulation, Win Probability analyzed 10,000 simulations to calculate the likelihood of success for each metric. This resulted in a percentage that indicated the probability of achieving success for each metric in the future.")
       ),
-      # Conversion Metrics Tab
-      tabItem(tabName = "conversion_metrics",
-              # Tab Header
-              fluidRow(
-                box(title = "Google Ads: Bidding Strategy", width = 12, background = "navy"),
-                box(width = 6, style = "background-color: #ADD8E6; border: none;", "Average Bidding"),
-                box(width = 6, style = "background-color: #000080; border: none; color: white;", "Maximum Bidding")
-              ),
-              # First Row
-              h1("Conversion Metrics",align = "center"),
-              fluidRow(
-                # Drop Down Selection
-                column(width = 2, selectInput("conversion_metric", "Conversion Metric",
-                                              choices = c("Clickthrough Rate" = "CTR_R", "Purchase Rate" = "PR_R", "Cart Completion Rate" = "PR_ATC"),
-                                              selected = "CTR_R")),
-                # Daily Conversion Metrics Plotted
-                column(width = 7, offset = 0, box(plotlyOutput("daily_conversion_metrics_plot"), width = "100%")),
-                # Cumulative Conversion Metrics Plotted 
-                column(width = 3, box(plotOutput("cumulative_conversion_metrics"),width = "100%"))
-              ),
-              # Second Row
-              fluidRow(
-                # Conversion Metrics Table
-                column(width = 2),
-                column(width = 7, box(tableOutput("conversion_metrics_table"), width = "100%")),
-                column(width = 3)
-              ),
-              # Third Row
-              # Conversion Metrics Dictionary
-              h3("Conversion Metrics Dictionary"),
-              p("Clickthrough Rate: Website Clicks /Impressions"),
-              p("Purchase Rate: Purchases / Impressions"),
-              p("Cart Completion Rate: Purchases / add to carts."),
-              p("Lift: Percentage that Average Bidding is less or more than Maximum Bidding"),
-              p("p-value: Determined using Wilcox Rank Sum Test, indicates if difference between Average and Maximum Bidding is Significant. Uses Daily Values for Analysis"),
-              p("Win Probability: The probability at which average bidding will win in the future. Uses Monte Carlo Simulation")
-      ),
-      # Key Metrics
-      tabItem(tabName = "key_metrics",
+    # Conversion Metrics Tab
+    tabItem(tabName = "conversion_metrics",
+            # Tab Header
+            fluidRow(
+              box(title = "Google Ads: Bidding Strategy", width = 12, background = "navy"),
+              box(width = 6, style = "background-color: #ADD8E6; border: none;", "Average Bidding"),
+              box(width = 6, style = "background-color: #000080; border: none; color: white;", "Maximum Bidding")
+            ),
+            # First Row
+            h1("Conversion Metrics",align = "center"),
+            fluidRow(
+              # Drop Down Selection
+              column(width = 2, selectInput("conversion_metric", "Conversion Metric",
+                                            choices = c("Clickthrough Rate" = "CTR_R", "Purchase Rate" = "PR_R", "Cart Completion Rate" = "PR_ATC"),
+                                            selected = "CTR_R")),
+              # Daily Conversion Metrics Plotted
+              column(width = 7, offset = 0, box(plotlyOutput("daily_conversion_metrics_plot"), width = "100%")),
+              # Cumulative Conversion Metrics Plotted
+              column(width = 3, box(plotOutput("cumulative_conversion_metrics"),width = "100%"))
+            ),
+            # Second Row
+            fluidRow(
+              # Conversion Metrics Table
+              column(width = 2),
+              column(width = 7, box(tableOutput("conversion_metrics_table"), width = "100%")),
+              column(width = 3)
+            ),
+            # Third Row
+            # Conversion Metrics Dictionary
+            h3("Conversion Metrics Dictionary"),
+            p("Clickthrough Rate: Website Clicks /Impressions"),
+            p("Purchase Rate: Purchases / Impressions"),
+            p("Cart Completion Rate: Purchases / add to carts."),
+            p("Lift: Percentage that Average Bidding is less or more than Maximum Bidding"),
+            p("p-value: Determined using Wilcox Rank Sum Test, indicates if difference between Average and Maximum Bidding is Significant. Uses Daily Values for Analysis"),
+            p("Win Probability: The probability at which average bidding will win in the future. Uses Monte Carlo Simulation")
+    ),
+    # Key Metrics
+    tabItem(tabName = "key_metrics",
+            # Header
+            fluidRow(
+              box(title = "Google Ads: Bidding Strategy", width = 12, background = "navy"),
+              box(width = 6, style = "background-color: #ADD8E6; border: none;", "Average Bidding"),
+              box(width = 6, style = "background-color: #000080; border: none; color: white;", "Maximum Bidding")
+            ),
+            # First Row
+            fluidRow(
+              h1("Key Metrics",align = "center"),
+              # Drop Down Selection
+              column(width = 2, selectInput("raw_metric", "Key Metric",
+                                            choices = c("Impressions","Website Clicks","Purchase"),
+                                            selected = c("Impressions"))),
+              # Daily Key Metrics Plotted
+              column(width = 7, offset = 0, box(plotlyOutput("daily_key_metrics_plot"), width = "100%")),
+              # Cumulative Key Metrics Plotted
+              column(width = 3, box(plotOutput("cumulative_key_metrics_plot"),width = "100%"))
+            ),
+            # Second Row
+            fluidRow(
+              column(width = 2),
+              # Key Metrics Table
+              column(width = 7, box(tableOutput("key_metrics_table"), width = "100%")),
+              column(width = 3)
+            ),
+            # Third Row
+            # Key Metrics Dictionary
+            h3("Key Metrics Dictionary"),
+            p("Impressions: Number of Ad Views"),
+            p("Website Clicks: Number of Clicks on the Ad"),
+            p("Purchase: Number of Purchases"),
+            p("Lift: Percentage that Average Bidding is less or more than Maximum Bidding"),
+            p("p-value: Determined using Wilcox Rank Sum Test, indicates if difference between Average and Maximum Bidding is Significant. Uses Daily Values for Analysis"),
+    ),
+    # Cost Metrics
+    tabItem(tabName = "cost_metrics",
+            fluidRow(
               # Header
-              fluidRow(
-                box(title = "Google Ads: Bidding Strategy", width = 12, background = "navy"),
-                box(width = 6, style = "background-color: #ADD8E6; border: none;", "Average Bidding"),
-                box(width = 6, style = "background-color: #000080; border: none; color: white;", "Maximum Bidding")
-              ),
-              # First Row
-              fluidRow(
-                h1("Key Metrics",align = "center"),
-                # Drop Down Selection
-                column(width = 2, selectInput("raw_metric", "Key Metric",
-                                              choices = c("Impressions","Website Clicks","Purchase"),
-                                              selected = c("Impressions"))),
-                # Daily Key Metrics Plotted
-                column(width = 7, offset = 0, box(plotlyOutput("daily_key_metrics_plot"), width = "100%")),
-                # Cumulative Key Metrics Plotted
-                column(width = 3, box(plotOutput("cumulative_key_metrics_plot"),width = "100%"))
-              ),
-              # Second Row
-              fluidRow(
-                column(width = 2),
-                # Key Metrics Table
-                column(width = 7, box(tableOutput("key_metrics_table"), width = "100%")),
-                column(width = 3)
-              ),
-              # Third Row
-              # Key Metrics Dictionary
-              h3("Dictionary"),
-              p("Impressions: Number of Ad Views"),
-              p("Website Clicks: Number of Clicks on the Ad"),
-              p("Purchase: Number of Purchases"),
-              p("Lift: Percentage that Average Bidding is less or more than Maximum Bidding"),
-              p("p-value: Determined using Wilcox Rank Sum Test, indicates if difference between Average and Maximum Bidding is Significant. Uses Daily Values for Analysis"),
-      ),
-      # Cost Metrics
-      tabItem(tabName = "cost_metrics",
-              fluidRow(
-                # Header
-                box(title = "Google Ads: Bidding Strategy", width = 12, background = "navy"),
-                box(width = 6, style = "background-color: #ADD8E6; border: none;", "Average Bidding"),
-                box(width = 6, style = "background-color: #000080; border: none; color: white;", "Maximum Bidding")
-              ),
-              # First Row
-              fluidRow(
-                h1("Cost Metrics",align = "center"),
-                # Drop Down Selection
-                column(width = 2, selectInput("cost_metric", "Cost Metric",
-                                              choices = c("Spend",
-                                                          "Cost per Purchase" = "CPP",
-                                                          "Cost per Impression" = "CPI", 
-                                                          "Cost per Click" = "CPC"),
-                                              selected = c("Spend"))),
-                # Daily Cost Metrics Plotted
-                column(width = 7, offset = 0, box(plotlyOutput("daily_cost_metrics_plot"), width = "100%")),
-                # Cumulative Cost Metrics Plotted
-                column(width = 3, box(plotOutput("cumulative_cost_plot"),width = "100%"))
-              ),
-              # Second Row
-              fluidRow(
-                # Cost Metrics Table
-                column(width = 12, box(tableOutput("cost_metrics_table"), width = "100%"))
-              ),
-              # Third Row
-              # Cost Metrics Dictionary
-              h3("Dictionary"),
-              p("Spend: Dollars spent"),
-              p("Cost per Purchase: Amount Spent / Number of Purchases"),
-              p("Cost per Click: Amount Spent / Number of Website Clicks"),
-              p("Cost per Impression: Amount Spent / Number of Impressions"),
-              p("Lift: Percentage that Average Bidding is less or more than Maximum Bidding"),
-              p("p-value: Determined using Wilcox Rank Sum Test, indicates if difference between Average and Maximum Bidding is Significant. Uses Daily Values for Analysis"),
-              p("Win Probability: The probability at which average bidding will win in the future. Uses Monte Carlo Simulation")
-      )
+              box(title = "Google Ads: Bidding Strategy", width = 12, background = "navy"),
+              box(width = 6, style = "background-color: #ADD8E6; border: none;", "Average Bidding"),
+              box(width = 6, style = "background-color: #000080; border: none; color: white;", "Maximum Bidding")
+            ),
+            # First Row
+            fluidRow(
+              h1("Cost Metrics",align = "center"),
+              # Drop Down Selection
+              column(width = 2, selectInput("cost_metric", "Cost Metric",
+                                            choices = c("Spend",
+                                                        "Cost per Purchase" = "CPP",
+                                                        "Cost per Impression" = "CPI",
+                                                        "Cost per Click" = "CPC"),
+                                            selected = c("Spend"))),
+              # Daily Cost Metrics Plotted
+              column(width = 7, offset = 0, box(plotlyOutput("daily_cost_metrics_plot"), width = "100%")),
+              # Cumulative Cost Metrics Plotted
+              column(width = 3, box(plotOutput("cumulative_cost_plot"),width = "100%"))
+            ),
+            # Second Row
+            fluidRow(
+              # Cost Metrics Table
+              column(width = 12, box(tableOutput("cost_metrics_table"), width = "100%"))
+            ),
+            # Third Row
+            # Cost Metrics Dictionary
+            h3("Cost Metrics Dictionary"),
+            p("Spend: Dollars spent"),
+            p("Cost per Purchase: Amount Spent / Number of Purchases"),
+            p("Cost per Click: Amount Spent / Number of Website Clicks"),
+            p("Cost per Impression: Amount Spent / Number of Impressions"),
+            p("Lift: Percentage that Average Bidding is less or more than Maximum Bidding"),
+            p("p-value: Determined using Wilcox Rank Sum Test, indicates if difference between Average and Maximum Bidding is Significant. Uses Daily Values for Analysis"),
+            p("Win Probability: The probability at which average bidding will win in the future. Uses Monte Carlo Simulation")
+    )
     )
   )
 )

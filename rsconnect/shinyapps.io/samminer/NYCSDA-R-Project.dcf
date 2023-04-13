@@ -1,0 +1,13 @@
+name: NYCSDA-R-Project
+title: NYCSDA-R-Project
+username:
+account: samminer
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 8786373
+bundleId: 7087238
+url: https://samminer.shinyapps.io/NYCSDA-R-Project/
+when: 1681428102.83816
+lastSyncTime: 1681428102.83817
+asMultiple: FALSE
+asStatic: FALSE

@@ -17,10 +17,10 @@ library(gridExtra)
 
 # ----------------- Raw Data
 
-average_bidding <- read.csv("/Users/samuelminer/Downloads/7 R.R/*R-Project/R-Shiny-App----A-B-Test-Analysis/control_group.csv", 
+average_bidding <- read.csv("control_group.csv", 
                             sep = ";", 
                             header = F)
-maximum_bidding <- read.csv("/Users/samuelminer/Downloads/7 R.R/*R-Project/R-Shiny-App----A-B-Test-Analysis/test_group.csv",
+maximum_bidding <- read.csv("test_group.csv",
                             sep = ";",
                             header = F)
 

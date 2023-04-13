@@ -52,7 +52,7 @@ plot_key_metrics_daily <- function(data, include_daily_vars, colors = c("#ADD8E6
 }
 
 # Run function:
-include_daily_vars <- c("Reach")
+include_daily_vars <- c("Impressions")
 plot_key_metrics_daily(combined_data, include_daily_vars)
 
 ###########################################################################
@@ -99,13 +99,14 @@ plot_cumulative_key_metrics(combined_data,include_daily_vars)
 
 #####################################################################################################################################
 
-# Wilcox Test on Key Metrics
+# WILCOXON TEST ON KEY METRICS
 
 # Variables are not normally distributed, use Wilcoxon rank-sum test per variable
 # Non Parametric (used for non-normalized data) test used to compare medians of two independent groups
 # Concludes there is a significant difference in the median of two groups when p-value is less than 0.05
 # The test ranks all the values in both groups together, from lowest to highest, and then calculates the sum of the ranks for each group. It then calculates the test statistic, which is the smaller of the two sums. The p-value of the test is then calculated, which indicates the probability of obtaining the observed test statistic or a more extreme value under the null hypothesis.
 # The Wilcoxon rank sum test is a useful alternative to the t-test when the normality assumption of the t-test is violated, or when the sample size is small. It is also appropriate when the data are ordinal, interval, or ratio, but not normally distributed.
+
 
 #####################################################################################################################################
 
@@ -343,3 +344,4 @@ key_metrics <- key_metrics %>%
          `p-value` = formatC(`p-value`, format = "f", digits = 5))
 
 key_metrics
+

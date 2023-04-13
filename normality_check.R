@@ -138,6 +138,22 @@ anderson_darling_summary
 shapiro_wilk_summary # shapiro_wilk
 
 
+#####################################################################################################################################
+
+# Shapiro Wilk and Anderso Darling Analysis agree that the following variables have normal distribution
+# Average Bidding: Spend (USD), Impressions, Reach, Website Clicks, Searches, Add to Cart, Purchase
+# Maximum Bidding: Spend (USD), Impressions, View Content                                                        
+
+# However, our visual analysis concludes otherwise. Therefore, we will trust our visual analysis and use Wilcox Rank Sum hypothesis test
+
+# About the Wilcoxon Rank Sum Test:
+# Non Parametric (used for non-normalized data) test used to compare medians of two independent groups
+# Concludes there is a significant difference in the median of two groups when p-value is less than 0.05
+# The test ranks all the values in both groups together, from lowest to highest, and then calculates the sum of the ranks for each group. It then calculates the test statistic, which is the smaller of the two sums. The p-value of the test is then calculated, which indicates the probability of obtaining the observed test statistic or a more extreme value under the null hypothesis.
+# The Wilcoxon rank sum test is a useful alternative to the t-test when the normality assumption of the t-test is violated, or when the sample size is small. It is also appropriate when the data are ordinal, interval, or ratio, but not normally distributed.
+
+#####################################################################################################################################
+
 
 
 
